@@ -144,6 +144,9 @@ class AudioDSPEngine:
         self._last_onset_wall: float = 0.0
         self._last_bpm_calc_wall: float = 0.0
         self._smoothed_bpm: float | None = None
+        self._song_started: bool = False
+        self._total_beats: float = 0.0
+        self._last_beat_tick_wall: float = 0.0
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
         self._hann = np.hanning(hop).astype(np.float32)
@@ -274,12 +277,18 @@ class AudioDSPEngine:
             if above_gate:
                 self._last_active_wall = now
                 is_playing = True
+                if not self._song_started:
+                    self._song_started = True
+                    self._total_beats = 0.0
+                    self._last_beat_tick_wall = now
 
                 # Sub-50ms onset & tempo tracking (only while playing)
                 if self._use_aubio:
                     is_onset = bool(self._onset(samples))
                     is_beat = bool(self._tempo(samples))
                     bpm = float(self._tempo.get_bpm()) if is_beat else None
+                    if bpm is not None:
+                        self._smoothed_bpm = bpm
                 else:
                     is_onset, bpm = self._fallback_onset_and_bpm(mag, rms)
 
@@ -290,13 +299,15 @@ class AudioDSPEngine:
                     midi_note, note_str, key_str = hz_to_note_info(detected_hz)
             else:
                 # Keep real-time spacing in onset envelope during brief pauses; clear after 3s silence
-                if not self._use_aubio:
-                    if (now - self._last_active_wall) > 3.0:
+                if (now - self._last_active_wall) > 3.0:
+                    self._song_started = False
+                    self._total_beats = 0.0
+                    if not self._use_aubio:
                         self._onset_env.clear()
                         self._smoothed_bpm = None
                         self._last_bpm_calc_wall = 0.0
-                    elif self._onset_env:
-                        self._onset_env.append(0.0)
+                elif not self._use_aubio and self._onset_env:
+                    self._onset_env.append(0.0)
 
                 # Reset pitch/playing state after silence hangover so UI doesn't freeze on stale notes
                 if (now - self._last_active_wall) >= self.config.silence_hold_sec:
@@ -308,9 +319,24 @@ class AudioDSPEngine:
                 else:
                     is_playing = True
 
+            bar: int | None = None
+            beat: int | None = None
+            if self._song_started:
+                dt = max(0.0, now - self._last_beat_tick_wall)
+                self._last_beat_tick_wall = now
+                active_bpm = bpm or self._smoothed_bpm or self.config.default_bpm
+                self._total_beats += dt * (active_bpm / 60.0)
+                bar = int(self._total_beats // 4) + 1
+                beat = int(self._total_beats % 4) + 1
+            else:
+                bar = 0
+                beat = 0
+
             self.state.update(
                 is_playing=is_playing,
                 bpm=bpm,
+                bar=bar,
+                beat=beat,
                 pitch_hz=pitch_hz,
                 note=note_str,
                 midi_note=midi_note,

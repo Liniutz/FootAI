@@ -18,6 +18,8 @@ class TestCyberJamCore(unittest.TestCase):
         snap = state.snapshot()
         self.assertFalse(snap["is_playing"])
         self.assertEqual(snap["bpm"], 0.0)
+        self.assertEqual(snap["bar"], 0)
+        self.assertEqual(snap["beat"], 0)
         pitch = snap["detected_pitch"]
         self.assertEqual(pitch["note"], "N/A")
         self.assertEqual(pitch["key"], "N/A")
@@ -25,11 +27,13 @@ class TestCyberJamCore(unittest.TestCase):
 
     def test_musical_state_update_and_onset_consume(self) -> None:
         state = MusicalState()
-        state.update(is_playing=True, bpm=124.5, pitch_hz=110.0, note="A2", midi_note=45, key="A", rms=0.1, onset=True)
+        state.update(is_playing=True, bpm=124.5, bar=2, beat=3, pitch_hz=110.0, note="A2", midi_note=45, key="A", rms=0.1, onset=True)
         snap1 = state.snapshot(consume_onset=True)
         self.assertTrue(snap1["is_playing"])
         self.assertTrue(snap1["onset"])
         self.assertEqual(snap1["bpm"], 124.5)
+        self.assertEqual(snap1["bar"], 2)
+        self.assertEqual(snap1["beat"], 3)
 
         snap2 = state.snapshot(consume_onset=True)
         self.assertFalse(snap2["onset"])
