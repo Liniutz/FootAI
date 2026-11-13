@@ -123,12 +123,16 @@ class AudioDSPEngine:
             self._onset.set_threshold(config.onset_threshold)
             self._onset.set_silence(config.silence_db)
 
+            self._tempo = aubio.tempo("default", win, hop, config.sample_rate)
+            self._tempo.set_silence(config.silence_db)
+
             self._aubio_pitch = aubio.pitch("yinfft", win, hop, config.sample_rate)
             self._aubio_pitch.set_unit("Hz")
             self._aubio_pitch.set_silence(config.silence_db)
         else:
             logger.warning("aubio C-extension not available; using NumPy SuperFlux onsets & librosa.yin pitch fallback.")
             self._onset = None
+            self._tempo = None
             self._aubio_pitch = None
 
         requested = config.pitch_backend.lower()
@@ -282,13 +286,21 @@ class AudioDSPEngine:
                     self._total_beats = 0.0
                     self._last_beat_tick_wall = now
 
-                # Onset flag + guitar tempo tracking (SuperFlux envelope feeds the tracker on both paths)
-                flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
+                # Onset flag + aubio native tempo or guitar tempo tracker
                 if self._use_aubio:
                     is_onset = bool(self._onset(samples))
                     if is_onset:
                         self._last_onset_wall = now
+                    is_beat = bool(self._tempo(samples))
+                    raw_tbpm = float(self._tempo.get_bpm())
+                    if is_beat and 40.0 <= raw_tbpm <= 240.0:
+                        if self._smoothed_bpm is None:
+                            self._smoothed_bpm = raw_tbpm
+                        else:
+                            self._smoothed_bpm = 0.7 * self._smoothed_bpm + 0.3 * raw_tbpm
+                        bpm = self._smoothed_bpm
                 else:
+                    flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
                     is_onset = flux_onset
 
                 # Pitch & key estimation
