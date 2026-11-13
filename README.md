@@ -2,6 +2,8 @@
 
 Central low-latency audio routing, DSP extraction, ML MIDI generation, Wekinator OSC-to-MIDI CC, and visual telemetry hub for **"The Cybernetic Session"** interactive museum installation.
 
+> **Full Documentation & Agent Protocol:** See [`docs/README.md`](./docs/README.md) for the complete architecture, interface contracts, `qpwgraph` routing, ML guides, and mandatory documentation rules for all agents and contributors.
+
 ---
 
 ## 1. System Architecture Overview
