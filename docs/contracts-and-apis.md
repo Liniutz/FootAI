@@ -37,18 +37,18 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 
 ## 2. Wekinator OSC Server (`udp://127.0.0.1:12000`)
 
-Incoming OSC floats are normalized (`[0.0, 1.0]` $\rightarrow$ `0`–`127`; values `> 1.0` clamped to `0`–`127`) and emitted as MIDI Control Change messages on **MIDI Channel 1** via `CyberneticAI_Band`.
+Incoming OSC floats are normalized (`[0.0, 1.0]` $\rightarrow$ `0`–`127`; values `> 1.0` clamped to `0`–`127`) and emitted as MIDI Control Change messages on **MIDI Channel 1** via `CyberJam_Band`.
 
 | OSC Address | Arguments | Target MIDI CC (Channel 1) |
 | :--- | :--- | :--- |
 | `/wek/outputs` | `float0, float1, ...` | Maps sequentially to CC `[74, 71, 1, 11, 20, 21, 22, 23]` |
-| `/cybernetic/cc/<num>` | `float` | Explicit MIDI CC `<num>` (`0`–`127`) |
-| `/cybernetic/rms` | `float` | CC `74` (Filter Cutoff / Brightness) |
-| `/cybernetic/centroid` | `float` | CC `71` (Filter Resonance / Timbre) |
+| `/cyberjam/cc/<num>` | `float` | Explicit MIDI CC `<num>` (`0`–`127`) |
+| `/cyberjam/rms` | `float` | CC `74` (Filter Cutoff / Brightness) |
+| `/cyberjam/centroid` | `float` | CC `71` (Filter Resonance / Timbre) |
 
 ---
 
-## 3. Virtual MIDI Egress (`CyberneticAI_Band`)
+## 3. Virtual MIDI Egress (`CyberJam_Band`)
 
 Created via `mido` + `python-rtmidi` (`virtual=True`).
 

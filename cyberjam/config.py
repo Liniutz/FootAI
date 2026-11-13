@@ -1,4 +1,4 @@
-"""Configuration and shared state models for The Cybernetic Session."""
+"""Configuration and shared state models for CyberJam."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import time
 
 @dataclass(frozen=True)
 class SessionConfig:
-    """Immutable runtime configuration for all Cybernetic Session subsystems."""
+    """Immutable runtime configuration for all CyberJam subsystems."""
 
     # Audio Ingress & DSP ("The Ears")
     sample_rate: int = 48000
@@ -27,7 +27,7 @@ class SessionConfig:
     enable_pipewire_loopback: bool = False
 
     # MIDI Egress ("The Hands")
-    midi_port_name: str = "CyberneticAI_Band"
+    midi_port_name: str = "CyberJam_Band"
     drum_channel: int = 9  # MIDI Channel 10 (0-indexed)
     bass_channel: int = 1  # MIDI Channel 2 (0-indexed)
     cc_channel: int = 0    # MIDI Channel 1 (0-indexed)

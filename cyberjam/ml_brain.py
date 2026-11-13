@@ -116,7 +116,7 @@ class MLSequencer:
         self._stop_event.clear()
         self._thread = threading.Thread(
             target=self._run_loop,
-            name="CyberneticMLSequencer",
+            name="CyberJamMLSequencer",
             daemon=True,
         )
         self._thread.start()

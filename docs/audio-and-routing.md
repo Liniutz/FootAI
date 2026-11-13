@@ -23,15 +23,15 @@ Every audio callback pushes raw PCM bytes directly to `127.0.0.1:13000`:
 
 **TouchDesigner:** Use a **UDP In DAT** or Python Script CHOP unpacking `struct.unpack('<512f', packet)`.
 
-### Option B: PipeWire Virtual Source (`Cybernetic Session Visual Audio`)
+### Option B: PipeWire Virtual Source (`CyberJam Visual Audio`)
 Launch with `--pipewire-loopback` or run `./scripts/setup_pipewire_loopback.sh`. This runs:
 ```bash
 pw-loopback \
-  --capture-props="node.name=CyberneticSession_VisualIn node.description='Cybernetic Visual In'" \
-  --playback-props="media.class=Audio/Source node.name=CyberneticSession_VisualSource node.description='Cybernetic Session Visual Audio'"
+  --capture-props="node.name=CyberJam_VisualIn node.description='CyberJam Visual In'" \
+  --playback-props="media.class=Audio/Source node.name=CyberJam_VisualSource node.description='CyberJam Visual Audio'"
 ```
-* **React / Browser:** Call `navigator.mediaDevices.getUserMedia({ audio: { deviceId } })` selecting `"Cybernetic Session Visual Audio"` and pipe into Web Audio API `AnalyserNode`.
-* **TouchDesigner:** Add an **Audio Device In CHOP** and select `"Cybernetic Session Visual Audio"`.
+* **React / Browser:** Call `navigator.mediaDevices.getUserMedia({ audio: { deviceId } })` selecting `"CyberJam Visual Audio"` and pipe into Web Audio API `AnalyserNode`.
+* **TouchDesigner:** Add an **Audio Device In CHOP** and select `"CyberJam Visual Audio"`.
 
 ---
 
@@ -42,9 +42,9 @@ Open `qpwgraph` after starting the Python router and your DAW:
 1. **Guitar $\rightarrow$ Python DSP ("The Ears"):**
    * Connect **`Scarlett Solo USB` (or USB Interface) `capture_FL`** $\rightarrow$ **`PortAudio` / `python3` input**.
 2. **Guitar $\rightarrow$ Visuals Virtual Source (if using `pw-loopback`):**
-   * Connect **`Scarlett Solo USB capture_FL`** $\rightarrow$ **`CyberneticSession_VisualIn playback_FL`**.
+   * Connect **`Scarlett Solo USB capture_FL`** $\rightarrow$ **`CyberJam_VisualIn playback_FL`**.
 3. **Python Virtual MIDI $\rightarrow$ DAW:**
-   * Connect **`CyberneticAI_Band` (MIDI Out)** $\rightarrow$ **DAW MIDI Input**:
+   * Connect **`CyberJam_Band` (MIDI Out)** $\rightarrow$ **DAW MIDI Input**:
      * **Track 1 (Drums VST):** MIDI Channel 10 (GM Kick `36`, Snare `38`, Closed Hat `42`).
      * **Track 2 (Bass VST):** MIDI Channel 2.
      * **Track 3 (Modulated Synth / Guitar FX):** MIDI Channel 1 (Wekinator MIDI CCs).
