@@ -1,6 +1,8 @@
 # CyberJam
 
-Central low-latency audio routing, DSP extraction, ML MIDI generation, Wekinator OSC-to-MIDI CC, and visual telemetry hub for **"The Cybernetic Session"** interactive museum installation.
+Central low-latency audio routing, DSP extraction, ML MIDI generation, Wekinator OSC-to-MIDI CC, and visual telemetry hub for **"CyberJam"** interactive museum installation.
+
+> **Full Documentation & Agent Protocol:** See [`docs/README.md`](./docs/README.md) for the complete architecture, interface contracts, `qpwgraph` routing, ML guides, and mandatory documentation rules for all agents and contributors.
 
 ---
 
@@ -11,7 +13,7 @@ The installation runs on a single **CachyOS (Arch Linux)** machine using **PipeW
 ```mermaid
 flowchart LR
     Guitar["Electric Guitar (USB Audio Interface)"] -->|"PipeWire / pw-jack"| Ears["Audio & DSP Engine (audio_dsp.py)"]
-    Guitar -->|"Optional pw-loopback"| PWSource["PipeWire Virtual Source (CyberneticSession_VisualSource)"]
+    Guitar -->|"Optional pw-loopback"| PWSource["PipeWire Virtual Source (CyberJam_VisualSource)"]
 
     Ears -->|"UDP :13000 (float32 PCM)"| Visuals["TouchDesigner / React Visuals"]
     PWSource -->|"Web Audio / Audio Device In"| Visuals
@@ -20,7 +22,7 @@ flowchart LR
     State -->|"50ms JSON @ ws://127.0.0.1:8080"| Visuals
 
     State -->|"BPM & Detected Key"| Brain["ML Brain Stubs (ml_brain.py)"]
-    Brain -->|"Drum (Ch 10) & Bass (Ch 2)"| Hands["Virtual MIDI Port: CyberneticAI_Band"]
+    Brain -->|"Drum (Ch 10) & Bass (Ch 2)"| Hands["Virtual MIDI Port: CyberJam_Band"]
 
     Wek["Wekinator (OSC :12000)"] -->|"Float -> MIDI CC (Ch 1)"| Hands
     Hands -->|"ALSA/PipeWire MIDI"| DAW["DAW (Drum, Bass & Synth VSTs)"]
@@ -30,12 +32,12 @@ flowchart LR
 ### Repository Layout
 ```text
 FootAI/
-├── cybernetic_session/
+├── cyberjam/
 │   ├── __init__.py
 │   ├── config.py          # SessionConfig & thread-safe MusicalState
 │   ├── audio_dsp.py       # Sounddevice ingress, UDP PCM broadcast, Aubio/Librosa/CREPE DSP
 │   ├── ml_brain.py        # DrumRNN & MelodyRNN stubs + drift-free 16-step sequencer
-│   ├── midi_egress.py     # Virtual ALSA MIDI port ("CyberneticAI_Band") via mido/rtmidi
+│   ├── midi_egress.py     # Virtual ALSA MIDI port ("CyberJam_Band") via mido/rtmidi
 │   ├── osc_wekinator.py   # AsyncIO OSC server (:12000) -> MIDI CC
 │   ├── ws_telemetry.py    # AsyncIO WebSocket server (:8080) @ 20 Hz
 │   └── main.py            # CLI & subsystem orchestrator
@@ -126,16 +128,16 @@ The WebSocket server broadcasts a JSON object every **50 ms (20 Hz)** to all con
 ---
 
 ### 3.2 Wekinator OSC Server (`udp://127.0.0.1:12000`)
-Incoming OSC float messages on port **12000** are converted to MIDI CC (`0`–`127`) on **MIDI Channel 1** and emitted through `CyberneticAI_Band`.
+Incoming OSC float messages on port **12000** are converted to MIDI CC (`0`–`127`) on **MIDI Channel 1** and emitted through `CyberJam_Band`.
 
 * **Float normalization:** Values in `[0.0, 1.0]` are scaled linearly to `0`–`127`. Values `> 1.0` are clamped to `0`–`127`.
 
 | OSC Address | Arguments | Target MIDI CC (Channel 1) |
 | :--- | :--- | :--- |
 | `/wek/outputs` | `float0, float1, float2, ...` | Maps sequentially to CC `[74, 71, 1, 11, 20, 21, 22, 23]` (74 = Cutoff, 71 = Resonance, 1 = Mod Wheel, 11 = Expression) |
-| `/cybernetic/cc/<num>` | `float` | Explicit MIDI CC `<num>` (`0`–`127`) |
-| `/cybernetic/rms` | `float` | CC `74` (Filter Cutoff / Brightness) |
-| `/cybernetic/centroid` | `float` | CC `71` (Filter Resonance / Timbre) |
+| `/cyberjam/cc/<num>` | `float` | Explicit MIDI CC `<num>` (`0`–`127`) |
+| `/cyberjam/rms` | `float` | CC `74` (Filter Cutoff / Brightness) |
+| `/cyberjam/centroid` | `float` | CC `71` (Filter Resonance / Timbre) |
 
 ---
 
@@ -152,9 +154,9 @@ Every audio callback pushes a raw PCM datagram immediately to `127.0.0.1:13000`:
 In **TouchDesigner**, use a **UDP In DAT** / **Audio Stream In** or a small Python script DAT unpacking `struct.unpack('<512f', packet)` into a Script CHOP.
 
 #### Option B: PipeWire Virtual Source (Recommended for React / Web Audio API & TouchDesigner)
-Run with `--pipewire-loopback` (or execute `./scripts/setup_pipewire_loopback.sh` in a separate terminal). This creates a system-wide virtual microphone named **`Cybernetic Session Visual Audio`**:
-* **React / Browser:** Call `navigator.mediaDevices.getUserMedia({ audio: { deviceId: ... } })` and select `"Cybernetic Session Visual Audio"` -> feed into `AnalyserNode`.
-* **TouchDesigner:** Add an **Audio Device In CHOP** and select `"Cybernetic Session Visual Audio"`.
+Run with `--pipewire-loopback` (or execute `./scripts/setup_pipewire_loopback.sh` in a separate terminal). This creates a system-wide virtual microphone named **`CyberJam Visual Audio`**:
+* **React / Browser:** Call `navigator.mediaDevices.getUserMedia({ audio: { deviceId: ... } })` and select `"CyberJam Visual Audio"` -> feed into `AnalyserNode`.
+* **TouchDesigner:** Add an **Audio Device In CHOP** and select `"CyberJam Visual Audio"`.
 
 ---
 
@@ -165,9 +167,9 @@ Open `qpwgraph` after starting `pw-jack python run_session.py` and your DAW:
 1. **Guitar -> Python DSP ("The Ears")**
    * Connect **`<Your USB Audio Interface> capture_FL`** (the guitar input channel) $\rightarrow$ **`PortAudio` / `python3` input**.
 2. **Guitar -> Visuals Virtual Source (if using `pw-loopback`)**
-   * Connect **`<Your USB Audio Interface> capture_FL`** $\rightarrow$ **`CyberneticSession_VisualIn` playback_FL**.
+   * Connect **`<Your USB Audio Interface> capture_FL`** $\rightarrow$ **`CyberJam_VisualIn` playback_FL**.
 3. **Python Virtual MIDI -> DAW**
-   * Connect **`CyberneticAI_Band` (MIDI Out)** $\rightarrow$ **DAW MIDI Input**:
+   * Connect **`CyberJam_Band` (MIDI Out)** $\rightarrow$ **DAW MIDI Input**:
      * **Track 1 (Drums VST):** Listen on **MIDI Channel 10** (GM Kick `36`, Snare `38`, Closed Hat `42`).
      * **Track 2 (Bass VST):** Listen on **MIDI Channel 2**.
      * **Track 3 (Modulated Synth / Guitar FX):** Listen on **MIDI Channel 1** for Wekinator MIDI CCs (`CC 74`, `CC 71`, etc.).
@@ -178,7 +180,7 @@ Open `qpwgraph` after starting `pw-jack python run_session.py` and your DAW:
 
 ## 5. ML Team Integration Guide
 
-The ML generation boundary lives in [`cybernetic_session/ml_brain.py`](file:///home/boxa/FootAI/cybernetic_session/ml_brain.py):
+The ML generation boundary lives in [`cyberjam/ml_brain.py`](file:///home/boxa/FootAI/cyberjam/ml_brain.py):
 
 * `generate_drum_midi(bpm: float) -> list[MidiStepEvent]`
 * `generate_bass_midi(key: str, bpm: float) -> list[MidiStepEvent]`

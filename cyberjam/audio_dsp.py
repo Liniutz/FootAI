@@ -72,8 +72,8 @@ class PipeWireLoopback:
 
         cmd = [
             "pw-loopback",
-            "--capture-props=node.name=CyberneticSession_VisualIn node.description='Cybernetic Visual In'",
-            "--playback-props=media.class=Audio/Source node.name=CyberneticSession_VisualSource node.description='Cybernetic Session Visual Audio'",
+            "--capture-props=node.name=CyberJam_VisualIn node.description='CyberJam Visual In'",
+            "--playback-props=media.class=Audio/Source node.name=CyberJam_VisualSource node.description='CyberJam Visual Audio'",
         ]
         try:
             self._proc = subprocess.Popen(
@@ -155,7 +155,7 @@ class AudioDSPEngine:
         self._stop_event.clear()
         self._worker_thread = threading.Thread(
             target=self._dsp_worker_loop,
-            name="CyberneticDSPWorker",
+            name="CyberJamDSPWorker",
             daemon=True,
         )
         self._worker_thread.start()

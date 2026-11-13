@@ -35,9 +35,9 @@ class WekinatorOSCServer:
 
         self._dispatcher = Dispatcher()
         self._dispatcher.map("/wek/outputs", self._handle_wek_outputs)
-        self._dispatcher.map("/cybernetic/cc/*", self._handle_explicit_cc)
-        self._dispatcher.map("/cybernetic/rms", self._handle_rms)
-        self._dispatcher.map("/cybernetic/centroid", self._handle_centroid)
+        self._dispatcher.map("/cyberjam/cc/*", self._handle_explicit_cc)
+        self._dispatcher.map("/cyberjam/rms", self._handle_rms)
+        self._dispatcher.map("/cyberjam/centroid", self._handle_centroid)
 
     async def start(self) -> None:
         """Bind and start the OSC UDP server on the running asyncio event loop."""
@@ -74,7 +74,7 @@ class WekinatorOSCServer:
                 logger.debug("Ignoring non-numeric OSC arg at %s: %r", address, raw)
 
     def _handle_explicit_cc(self, address: str, *args: Any) -> None:
-        """Handle /cybernetic/cc/<cc_num> <float_value>."""
+        """Handle /cyberjam/cc/<cc_num> <float_value>."""
         if not args:
             return
         try:
@@ -86,7 +86,7 @@ class WekinatorOSCServer:
             logger.debug("Invalid explicit CC OSC message: %s %r", address, args)
 
     def _handle_rms(self, address: str, *args: Any) -> None:
-        """Convenience handler mapping /cybernetic/rms -> CC 74 (Brightness/Cutoff)."""
+        """Convenience handler mapping /cyberjam/rms -> CC 74 (Brightness/Cutoff)."""
         if args:
             try:
                 self.midi.control_change(self.config.cc_channel, 74, _float_to_cc_value(float(args[0])))
@@ -94,7 +94,7 @@ class WekinatorOSCServer:
                 pass
 
     def _handle_centroid(self, address: str, *args: Any) -> None:
-        """Convenience handler mapping /cybernetic/centroid -> CC 71 (Resonance/Timbre)."""
+        """Convenience handler mapping /cyberjam/centroid -> CC 71 (Resonance/Timbre)."""
         if args:
             try:
                 self.midi.control_change(self.config.cc_channel, 71, _float_to_cc_value(float(args[0])))
