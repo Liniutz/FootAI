@@ -147,6 +147,9 @@
         <div class="metric-label"><span>Tempo (BPM)</span><strong id="bpmVal">0.0</strong></div>
       </div>
       <div class="metric-row">
+        <div class="metric-label"><span>4/4 Bar : Beat</span><strong id="barBeatVal">-- : -</strong></div>
+      </div>
+      <div class="metric-row">
         <div class="metric-label"><span>RMS Level</span><strong id="rmsVal">0.0000</strong></div>
         <div class="bar-bg"><div id="rmsBar" class="bar-fill rms"></div></div>
       </div>
@@ -187,6 +190,7 @@
     const midiNumEl = document.getElementById("midiNum");
     const keyClassEl = document.getElementById("keyClass");
     const bpmValEl = document.getElementById("bpmVal");
+    const barBeatValEl = document.getElementById("barBeatVal");
     const rmsValEl = document.getElementById("rmsVal");
     const rmsBarEl = document.getElementById("rmsBar");
     const centValEl = document.getElementById("centVal");
@@ -283,6 +287,7 @@
         keyClassEl.textContent = p.key;
 
         bpmValEl.textContent = d.bpm.toFixed(1);
+        barBeatValEl.textContent = d.bar > 0 ? `Bar ${d.bar} : Beat ${d.beat}` : "-- : -";
         rmsValEl.textContent = d.rms.toFixed(4);
         rmsBarEl.style.width = `${Math.min(100, d.rms * 250)}%`;
         centValEl.textContent = `${d.spectral_centroid_hz.toFixed(1)} Hz`;

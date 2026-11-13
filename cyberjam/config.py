@@ -51,6 +51,8 @@ class MusicalState:
 
     is_playing: bool = False
     bpm: float = 0.0
+    bar: int = 0
+    beat: int = 0
     detected_pitch_hz: float = 0.0
     detected_note: str = "N/A"
     detected_midi_note: int = 0
@@ -66,6 +68,8 @@ class MusicalState:
         *,
         is_playing: bool | None = None,
         bpm: float | None = None,
+        bar: int | None = None,
+        beat: int | None = None,
         pitch_hz: float | None = None,
         note: str | None = None,
         midi_note: int | None = None,
@@ -79,6 +83,10 @@ class MusicalState:
                 self.is_playing = is_playing
             if bpm is not None and 40.0 <= bpm <= 240.0:
                 self.bpm = round(bpm, 2)
+            if bar is not None:
+                self.bar = bar
+            if beat is not None:
+                self.beat = beat
             if pitch_hz is not None:
                 self.detected_pitch_hz = round(pitch_hz, 2)
             if note is not None:
@@ -105,6 +113,8 @@ class MusicalState:
                 "timestamp": time.time(),
                 "is_playing": self.is_playing,
                 "bpm": self.bpm,
+                "bar": self.bar,
+                "beat": self.beat,
                 "detected_pitch": {
                     "hz": self.detected_pitch_hz,
                     "note": self.detected_note,
