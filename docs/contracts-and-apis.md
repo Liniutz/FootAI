@@ -4,6 +4,8 @@
 
 Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual clients (TouchDesigner / React).
 
+> **Built-in Live Monitor GUI:** Open [`scripts/monitor_gui.html`](../scripts/monitor_gui.html) in a browser (`xdg-open scripts/monitor_gui.html`) to view live notes, chromatic pitch class, BPM, RMS, spectral centroid, and onset flashes in real time.
+
 ### JSON Schema & Example
 ```json
 {
