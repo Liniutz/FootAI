@@ -12,6 +12,8 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
   "timestamp": 1763042450.123456,
   "is_playing": true,
   "bpm": 122.45,
+  "bar": 3,
+  "beat": 2,
   "detected_pitch": {
     "hz": 110.0,
     "note": "A2",
@@ -28,14 +30,16 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 | :--- | :--- | :--- |
 | `timestamp` | `float` | Unix epoch seconds |
 | `is_playing` | `bool` | `true` when input RMS is above the noise gate (`--noise-gate-db`), `false` after `0.35s` of silence |
-| `bpm` | `float` | `0.0` initially, or `40.0` – `240.0` once detected |
+| `bpm` | `float` | `0.0` initially, or `60.0` – `180.0` once the guitar tempo tracker locks; returns to `0.0` after `> 3.0s` silence |
+| `bar` | `int` | `0` when idle, `1+` counting continuously from the first note played (resets after `> 3.0s` silence) |
+| `beat` | `int` | `0` when idle, `1`–`4` within the current 4/4 bar |
 | `detected_pitch.hz` | `float` | Fundamental frequency in Hz (`0.0` below noise gate) |
 | `detected_pitch.note` | `string` | Note name + octave (e.g., `"E2"`, `"A2"`, `"N/A"`) |
 | `detected_pitch.midi` | `int` | `0` – `127` |
 | `detected_pitch.key` | `string` | Pitch class (`"C"`, `"C#"`, ..., `"B"`) |
 | `rms` | `float` | Linear RMS amplitude (`0.0` – `1.0`) |
 | `spectral_centroid_hz` | `float` | Spectral centroid in Hz |
-| `onset` | `bool` | `true` if an onset occurred since the previous 50ms broadcast |
+| `onset` | `bool` | `true` if an onset occurred since the previous 50ms broadcast (an onset not consumed within `0.25s` expires, so a newly connected client never receives a stale one) |
 
 ---
 

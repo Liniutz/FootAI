@@ -44,6 +44,7 @@ To guarantee sub-50ms audio responsiveness with zero dropouts:
 | :--- | :--- |
 | `run_session.py` | Top-level executable launcher |
 | `cyberjam/config.py` | `SessionConfig` defaults & thread-safe `MusicalState` |
+| `cyberjam/tempo.py` | Guitar-optimised comb/autocorrelation BPM estimator + `GuitarTempoTracker` |
 | `cyberjam/audio_dsp.py` | Audio ingress, UDP PCM broadcast, `PipeWireLoopback`, DSP worker |
 | `cyberjam/ml_brain.py` | `generate_drum_midi`, `generate_bass_midi` stubs & `MLSequencer` |
 | `cyberjam/midi_egress.py` | Thread-safe `CyberJam_Band` virtual ALSA MIDI port |

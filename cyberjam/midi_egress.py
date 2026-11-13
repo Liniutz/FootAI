@@ -77,4 +77,6 @@ class MidiEgress:
         if self._port is None:
             return
         for ch in range(16):
+            # CC 120 = All Sound Off, CC 123 = All Notes Off (some synths honour only one)
+            self._port.send(mido.Message("control_change", channel=ch, control=120, value=0))
             self._port.send(mido.Message("control_change", channel=ch, control=123, value=0))

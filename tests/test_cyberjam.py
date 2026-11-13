@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from cyberjam.audio_dsp import AudioDSPEngine, hz_to_note_info
 from cyberjam.config import MusicalState, SessionConfig
 from cyberjam.ml_brain import generate_bass_midi, generate_drum_midi
 from cyberjam.osc_wekinator import _float_to_cc_value
+from cyberjam.tempo import estimate_bpm
 
 
 class TestCyberJamCore(unittest.TestCase):
@@ -16,6 +19,8 @@ class TestCyberJamCore(unittest.TestCase):
         snap = state.snapshot()
         self.assertFalse(snap["is_playing"])
         self.assertEqual(snap["bpm"], 0.0)
+        self.assertEqual(snap["bar"], 0)
+        self.assertEqual(snap["beat"], 0)
         pitch = snap["detected_pitch"]
         self.assertEqual(pitch["note"], "N/A")
         self.assertEqual(pitch["key"], "N/A")
@@ -23,11 +28,13 @@ class TestCyberJamCore(unittest.TestCase):
 
     def test_musical_state_update_and_onset_consume(self) -> None:
         state = MusicalState()
-        state.update(is_playing=True, bpm=124.5, pitch_hz=110.0, note="A2", midi_note=45, key="A", rms=0.1, onset=True)
+        state.update(is_playing=True, bpm=124.5, bar=2, beat=3, pitch_hz=110.0, note="A2", midi_note=45, key="A", rms=0.1, onset=True)
         snap1 = state.snapshot(consume_onset=True)
         self.assertTrue(snap1["is_playing"])
         self.assertTrue(snap1["onset"])
         self.assertEqual(snap1["bpm"], 124.5)
+        self.assertEqual(snap1["bar"], 2)
+        self.assertEqual(snap1["beat"], 3)
 
         snap2 = state.snapshot(consume_onset=True)
         self.assertFalse(snap2["onset"])
@@ -53,23 +60,36 @@ class TestCyberJamCore(unittest.TestCase):
             self.assertGreaterEqual(ev.velocity, 1)
             self.assertLessEqual(ev.velocity, 127)
 
-    def test_bpm_smoothing_and_octave_folding(self) -> None:
-        # Under 2 bars (< 3.8s or < 8 onsets) should wait before locking BPM
-        too_short = [0.0, 0.5, 1.0, 1.5, 2.0]
-        self.assertIsNone(AudioDSPEngine._estimate_bpm_from_onsets(too_short, None))
+    def test_bpm_envelope_waits_for_enough_bars(self) -> None:
+        fps = 48000 / 512
+        short_env = np.zeros(int(1.5 * fps), dtype=np.float32)
+        short_env[::47] = 1.0
+        self.assertIsNone(estimate_bpm(short_env, fps))
 
-        # 2+ bars at 120 BPM (0.5s quarter notes over 4.0s)
-        bars_120 = [0.5 * i for i in range(9)]
-        bpm_120 = AudioDSPEngine._estimate_bpm_from_onsets(bars_120, None)
-        self.assertIsNotNone(bpm_120)
-        self.assertAlmostEqual(bpm_120, 120.0, delta=1.5)
+        env_120 = np.zeros(int(6.0 * fps), dtype=np.float32)
+        for t in np.arange(0.0, 6.0, 0.5):
+            env_120[int(t * fps)] = 1.0
+        for t in np.arange(0.375, 6.0, 1.0):
+            env_120[int(t * fps)] = 0.6
+        res = estimate_bpm(env_120, fps)
+        self.assertIsNotNone(res)
+        self.assertAlmostEqual(res[0], 120.0, delta=4.0)
 
-        # 2+ bars at 85 BPM (0.7059s quarter notes over 5.6s) should not double to 170 BPM
-        period_85 = 60.0 / 85.0
-        bars_85 = [period_85 * i for i in range(9)]
-        bpm_85 = AudioDSPEngine._estimate_bpm_from_onsets(bars_85, None)
-        self.assertIsNotNone(bpm_85)
-        self.assertAlmostEqual(bpm_85, 85.0, delta=1.5)
+    def test_superflux_vibrato_suppression_and_accent(self) -> None:
+        prev = np.zeros(32, dtype=np.float32)
+        prev[10] = 2.0
+        # Shifted by 1 bin (vibrato) with same amplitude should produce zero flux
+        shifted = np.zeros(32, dtype=np.float32)
+        shifted[11] = (np.exp(2.0) - 1.0) / 10.0
+        flux_vib, _ = AudioDSPEngine._compute_superflux(shifted, prev, rms=0.05)
+        self.assertAlmostEqual(flux_vib, 0.0, places=5)
+
+        # True new transient at higher RMS should produce stronger weighted flux
+        attack = np.zeros(32, dtype=np.float32)
+        attack[20] = 5.0
+        flux_soft, _ = AudioDSPEngine._compute_superflux(attack, prev, rms=0.02)
+        flux_loud, _ = AudioDSPEngine._compute_superflux(attack, prev, rms=0.15)
+        self.assertGreater(flux_loud, flux_soft)
 
 
 if __name__ == "__main__":

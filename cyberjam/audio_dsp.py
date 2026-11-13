@@ -22,6 +22,7 @@ import numpy as np
 import sounddevice as sd
 
 from .config import MusicalState, SessionConfig
+from .tempo import GuitarTempoTracker
 
 logger = logging.getLogger(__name__)
 
@@ -129,24 +130,39 @@ class AudioDSPEngine:
             self._aubio_pitch.set_unit("Hz")
             self._aubio_pitch.set_silence(config.silence_db)
         else:
-            logger.warning("aubio C-extension not available; using NumPy spectral-flux onset & librosa.yin fallback.")
+            logger.warning("aubio C-extension not available; using NumPy SuperFlux onsets & librosa.yin pitch fallback.")
             self._onset = None
             self._tempo = None
             self._aubio_pitch = None
 
+        requested = config.pitch_backend.lower()
+        if requested in ("auto", "aubio"):
+            self._pitch_backend = "aubio" if self._use_aubio else "librosa"
+            if requested == "aubio" and not self._use_aubio:
+                logger.warning("pitch backend 'aubio' requested but aubio is missing; using librosa.yin")
+        else:
+            self._pitch_backend = requested
+        logger.info("Active pitch backend: %s (onsets: %s)", self._pitch_backend, "aubio" if self._use_aubio else "SuperFlux")
+
         self._noise_gate_rms = 10.0 ** (config.silence_db / 20.0)
         self._last_active_wall: float = 0.0
 
-        self._prev_mag: np.ndarray | None = None
+        self._prev_log_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
-        self._onset_times: deque[float] = deque(maxlen=48)
+        self._fps = config.sample_rate / config.block_size
+        self._tempo_tracker = GuitarTempoTracker(fps=self._fps)
         self._last_onset_wall: float = 0.0
-        self._last_bpm_calc_wall: float = 0.0
         self._smoothed_bpm: float | None = None
+        self._song_started: bool = False
+        self._total_beats: float = 0.0
+        self._last_beat_tick_wall: float = 0.0
+        self._xrun_count: int = 0  # written by the audio callback, logged by the DSP worker
+        self._xrun_logged: int = 0
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
         self._hann = np.hanning(hop).astype(np.float32)
         self._freqs = np.fft.rfftfreq(hop, d=1.0 / config.sample_rate)
+        self._pick_band_mask = (self._freqs >= 80.0) & (self._freqs <= 5000.0)  # guitar fundamentals + pick attack
 
         self._loopback: PipeWireLoopback | None = (
             PipeWireLoopback() if config.enable_pipewire_loopback else None
@@ -182,7 +198,7 @@ class AudioDSPEngine:
             self.config.block_size,
             self.config.udp_host,
             self.config.udp_port,
-            self.config.pitch_backend,
+            self._pitch_backend,
         )
 
     def stop(self) -> None:
@@ -216,9 +232,9 @@ class AudioDSPEngine:
         time_info: typing.Any,
         status: sd.CallbackFlags,
     ) -> None:
-        """Real-time audio callback. Must NEVER block or allocate heavily."""
+        """Real-time audio callback. Must NEVER block, log, or allocate heavily."""
         if status:
-            logger.debug("Audio callback status: %s", status)
+            self._xrun_count += 1  # plain int bump; the DSP worker reports it
 
         mono = np.ascontiguousarray(indata[:, 0], dtype=np.float32)
 
@@ -260,18 +276,32 @@ class AudioDSPEngine:
             key_str: str | None = None
             is_onset = False
             bpm: float | None = None
+            reset_bpm = False
 
             if above_gate:
                 self._last_active_wall = now
                 is_playing = True
+                if not self._song_started:
+                    self._song_started = True
+                    self._total_beats = 0.0
+                    self._last_beat_tick_wall = now
 
-                # Sub-50ms onset & tempo tracking (only while playing)
+                # Onset flag + aubio native tempo or guitar tempo tracker
                 if self._use_aubio:
                     is_onset = bool(self._onset(samples))
+                    if is_onset:
+                        self._last_onset_wall = now
                     is_beat = bool(self._tempo(samples))
-                    bpm = float(self._tempo.get_bpm()) if is_beat else None
+                    raw_tbpm = float(self._tempo.get_bpm())
+                    if is_beat and 40.0 <= raw_tbpm <= 240.0:
+                        if self._smoothed_bpm is None:
+                            self._smoothed_bpm = raw_tbpm
+                        else:
+                            self._smoothed_bpm = 0.7 * self._smoothed_bpm + 0.3 * raw_tbpm
+                        bpm = self._smoothed_bpm
                 else:
-                    is_onset, bpm = self._fallback_onset_and_bpm(mag, rms)
+                    flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
+                    is_onset = flux_onset
 
                 # Pitch & key estimation
                 detected_hz = self._estimate_pitch(samples, frame_counter)
@@ -279,8 +309,22 @@ class AudioDSPEngine:
                     pitch_hz = detected_hz
                     midi_note, note_str, key_str = hz_to_note_info(detected_hz)
             else:
+                self._prev_log_mag = None
+                silent_for = now - self._last_active_wall
+                if silent_for > 3.0:
+                    # Long silence: new song. Reset beat counter and tempo memory.
+                    self._song_started = False
+                    self._total_beats = 0.0
+                    self._tempo_tracker.reset()
+                    self._smoothed_bpm = None
+                    self._flux_history.clear()
+                    reset_bpm = True
+                elif self._tempo_tracker.bpm is not None or self._song_started:
+                    # Brief pause: keep real-time spacing in the envelope without creating onsets
+                    self._tempo_tracker.push(0.0)
+
                 # Reset pitch/playing state after silence hangover so UI doesn't freeze on stale notes
-                if (now - self._last_active_wall) >= self.config.silence_hold_sec:
+                if silent_for >= self.config.silence_hold_sec:
                     is_playing = False
                     pitch_hz = 0.0
                     note_str = "N/A"
@@ -289,9 +333,25 @@ class AudioDSPEngine:
                 else:
                     is_playing = True
 
+            bar: int | None = None
+            beat: int | None = None
+            if self._song_started:
+                dt = max(0.0, now - self._last_beat_tick_wall)
+                self._last_beat_tick_wall = now
+                active_bpm = self._smoothed_bpm or self.config.default_bpm
+                self._total_beats += dt * (active_bpm / 60.0)
+                bar = int(self._total_beats // 4) + 1
+                beat = int(self._total_beats % 4) + 1
+            else:
+                bar = 0
+                beat = 0
+
             self.state.update(
                 is_playing=is_playing,
                 bpm=bpm,
+                reset_bpm=reset_bpm,
+                bar=bar,
+                beat=beat,
                 pitch_hz=pitch_hz,
                 note=note_str,
                 midi_note=midi_note,
@@ -301,6 +361,9 @@ class AudioDSPEngine:
                 onset=is_onset,
             )
             frame_counter += 1
+            if self._xrun_count != self._xrun_logged:
+                logger.debug("Audio callback reported %d xrun/status flags so far", self._xrun_count)
+                self._xrun_logged = self._xrun_count
 
     def _compute_spectral_centroid_from_mag(self, mag: np.ndarray | None) -> float:
         if mag is None:
@@ -311,97 +374,64 @@ class AudioDSPEngine:
         return float(np.sum(self._freqs * mag) / mag_sum)
 
     @staticmethod
-    def _estimate_bpm_from_onsets(onset_times: list[float], prev_bpm: float | None) -> float | None:
-        """Estimate 4/4 BPM over a 2-3 bar onset window using beat-grid periodicity scoring."""
-        if len(onset_times) < 8:
-            return prev_bpm
+    def _compute_superflux(
+        mag_band: np.ndarray,
+        prev_log_mag: np.ndarray | None,
+        rms: float,
+    ) -> tuple[float, np.ndarray]:
+        """Compute vibrato-suppressed log-compressed SuperFlux weighted by RMS accent."""
+        log_mag = np.log1p(10.0 * mag_band)
+        if prev_log_mag is None or len(prev_log_mag) != len(log_mag):
+            return 0.0, log_mag
 
-        span = onset_times[-1] - onset_times[0]
-        if span < 3.8:  # Require ~2 bars of 4/4 musical context before locking BPM
-            return prev_bpm
+        # 3-bin maximum filter on previous frame suppresses vibrato/pitch-bend bin drift
+        prev_max = np.maximum(
+            prev_log_mag,
+            np.maximum(np.roll(prev_log_mag, 1), np.roll(prev_log_mag, -1)),
+        )
+        prev_max[0] = np.maximum(prev_log_mag[0], prev_log_mag[1])
+        prev_max[-1] = np.maximum(prev_log_mag[-1], prev_log_mag[-2])
 
-        times = np.asarray(onset_times, dtype=np.float64)
-        diffs = times[:, None] - times[None, :]
-        # Keep causal pairwise intervals between 0.25s and 4.5s
-        dt = diffs[(diffs >= 0.25) & (diffs <= 4.5)]
-        if len(dt) < 6:
-            return prev_bpm
+        raw_flux = float(np.sum(np.maximum(0.0, log_mag - prev_max)))
+        # Downbeat accent weighting: emphasize strong strums over soft upstrokes
+        accent_weight = 0.5 + min(1.5, rms * 10.0)
+        return raw_flux * accent_weight, log_mag
 
-        candidates = np.arange(70.0, 166.0, 1.0, dtype=np.float64)
-        periods = 60.0 / candidates[:, None]  # Shape: (N_bpm, 1)
-        rem = np.mod(dt[None, :], periods)
-        phase_err = np.minimum(rem, periods - rem)
-        sigma = 0.045
-        scores = np.mean(np.exp(-0.5 * (phase_err / sigma) ** 2), axis=1)
+    def _flux_onset_and_bpm(self, mag: np.ndarray | None, rms: float, now: float) -> tuple[bool, float | None]:
+        """SuperFlux onset detector feeding the guitar tempo tracker.
 
-        max_score = float(np.max(scores))
-        if max_score < 0.35:
-            return prev_bpm
-
-        # Break 2x harmonic ties by choosing the lowest BPM within 96% of peak alignment
-        best_idx = int(np.where(scores >= max_score * 0.96)[0][0])
-        raw_bpm = float(candidates[best_idx])
-
-        if prev_bpm is None:
-            return raw_bpm
-        return (0.75 * prev_bpm) + (0.25 * raw_bpm)
-
-    def _fallback_onset_and_bpm(self, mag: np.ndarray | None, rms: float) -> tuple[bool, float | None]:
-        """Lightweight spectral-flux onset detector & 2-3 bar 4/4 BPM tracker."""
+        Returns ``(is_onset, bpm)``; ``bpm`` is only set on frames where the tracker produced
+        a new estimate. Onsets are debounced to 100 ms (a 16th note at 150 BPM).
+        """
         if mag is None or rms <= self._noise_gate_rms:
-            self._prev_mag = mag
+            self._prev_log_mag = None
             return False, None
 
-        if self._prev_mag is None:
-            self._prev_mag = mag
-            return False, None
-
-        flux = float(np.sum(np.maximum(0.0, mag - self._prev_mag)))
-        self._prev_mag = mag
+        flux, self._prev_log_mag = self._compute_superflux(
+            mag[self._pick_band_mask],
+            self._prev_log_mag,
+            rms,
+        )
         self._flux_history.append(flux)
+        new_bpm = self._tempo_tracker.push(flux)
+        if new_bpm is not None:
+            self._smoothed_bpm = new_bpm
 
         if len(self._flux_history) < 8:
-            return False, None
+            return False, new_bpm
 
         mean_flux = float(np.mean(self._flux_history))
-        now = time.monotonic()
-        is_onset = flux > (mean_flux * 1.85 + 0.5) and (now - self._last_onset_wall) > 0.12
-        bpm: float | None = None
+        is_onset = flux > (mean_flux * 1.65 + 0.15) and (now - self._last_onset_wall) > 0.10
         if is_onset:
             self._last_onset_wall = now
-            # Reset beat history after a long pause (> 3.0s)
-            if self._onset_times and (now - self._onset_times[-1]) > 3.0:
-                self._onset_times.clear()
-                self._smoothed_bpm = None
-                self._last_bpm_calc_wall = 0.0
-
-            self._onset_times.append(now)
-            # Trim to ~3 bars (last 7.5 seconds)
-            while self._onset_times and (now - self._onset_times[0]) > 7.5:
-                self._onset_times.popleft()
-
-            # Recompute BPM at most once every 2.0s (~1 bar) once 2+ bars are collected
-            if (now - self._last_bpm_calc_wall) >= 2.0:
-                estimated = self._estimate_bpm_from_onsets(
-                    list(self._onset_times),
-                    self._smoothed_bpm,
-                )
-                if estimated is not None:
-                    self._last_bpm_calc_wall = now
-                    self._smoothed_bpm = estimated
-                    bpm = estimated
-        return is_onset, bpm
+        return is_onset, new_bpm
 
     def _estimate_pitch(self, samples: np.ndarray, frame_counter: int) -> float:
-        backend = self.config.pitch_backend.lower()
+        backend = self._pitch_backend
         if backend == "aubio" and self._use_aubio and self._aubio_pitch is not None:
             hz = float(self._aubio_pitch(samples)[0])
             conf = float(self._aubio_pitch.get_confidence())
             return hz if conf >= 0.65 else 0.0
-
-        # Fallback to librosa when aubio is requested but unavailable
-        if backend == "aubio":
-            backend = "librosa"
 
         # Rolling buffer required for librosa.yin or crepe
         if len(self._rolling_buf) < self._rolling_buf.maxlen:

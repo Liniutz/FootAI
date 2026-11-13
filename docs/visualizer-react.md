@@ -226,7 +226,7 @@ lanes with the same dependency can run simultaneously.
 
 ### Lane B — Menu feature (parallel with Lane C)
 
-- [ ] **Task 4: Instrument & song data model + static catalog.**
+- [x] **Task 4: Instrument & song data model + static catalog.** ✅ *Done (Lane B).*
   - *Lane:* B (Menu). *Depends on:* Task 2. *Parallel with:* all of Lane C.
   - *Objective:* Define the catalog of selectable **instruments** (mapped to documented roles/MIDI
     channels for display — Drums = Ch 10, Bass = Ch 2, Synth/FX = Ch 1) and **songs** (static list
@@ -236,8 +236,18 @@ lanes with the same dependency can run simultaneously.
     Songs carry `referenceBpm`/`referenceKey` for Visualizer overlays. No network calls.
   - *Tests:* Catalog integrity (unique ids, valid channels, colors present); selector helpers.
   - *Demo:* A temporary list renders all instruments and songs from the catalog.
+  - *Result:* Static catalog in `src/data/catalog.ts` using the frozen `InstrumentEntry`/`SongEntry`
+    types (no network calls). Instruments: **Drums** (lane 0, MIDI Ch 10), **Bass** (lane 1, Ch 2),
+    **Synth / FX** (lane 2, Ch 1), each with a `displayColor`; channels match
+    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Cargo** (`cargo-song`, 128 BPM,
+    key E) and **Free Jam** (engine defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
+    `getSongById`, `getInstrumentsByIds` (catalog lane order, drops unknowns), `isValidInstrumentId`,
+    `isValidSongId`. `MenuView` renders a temporary read-only list of the catalog (replaced by the
+    interactive pickers in Task 5). Verified: `npm run typecheck`, `npm test` (37 passing, incl. 15
+    new catalog integrity + selector tests), and `npm run build` all green on branch
+    `feat/react-visualizer-menu-catalog`.
 
-- [ ] **Task 5: Menu view UI — selection and persistence.**
+- [x] **Task 5: Menu view UI — selection and persistence.** ✅ *Done (Lane B).*
   - *Lane:* B (Menu). *Depends on:* Task 4. *Parallel with:* all of Lane C.
   - *Objective:* Build the Menu view: a song picker (single select) and an instrument picker
     (multi-select toggles), writing choices into the store's `selection` and persisting to
@@ -248,6 +258,28 @@ lanes with the same dependency can run simultaneously.
     `localStorage`) restores selection; corrupt storage falls back to defaults.
   - *Demo:* Pick the Cargo song + instruments, reload → selection persists; "Start" navigates to the
     Visualizer.
+  - *Result:* `MenuView` (`src/views/MenuView.tsx`) renders a single-select song radio group and
+    multi-select instrument toggle buttons (`aria-pressed`), writing through the store's `setSong` /
+    `toggleInstrument` actions (so `useSelectionSync` mirrors changes to the Visualizer window). A
+    small localStorage wrapper (`src/menu/persistence.ts`, key `cyberjam.selection`) persists on
+    every change and rehydrates on mount; `loadSelection` sanitizes against the catalog — unknown
+    song/instrument ids and corrupt/non-object JSON fall back to the empty selection, and instrument
+    ids are de-duplicated. "Start / Go to Visualizer" is disabled until a song is chosen, then sets
+    the hash to `#/visualizer`. Verified: `npm run typecheck`, `npm test` (49 passing, incl. 7
+    persistence + 5 Menu RTL tests), and `npm run build` all green on branch
+    `feat/react-visualizer-menu-catalog`.
+  - *Enhancement (controller support + Rocksmith-style UI):* The Menu was redesigned with a
+    friendlier, game-like aesthetic (dark gradient hero, large song/instrument "cards" with a glowing
+    cyan focus ring, per-instrument accent colors from the catalog `displayColor`, and a prominent
+    "Start Session" call-to-action). Full **gamepad** navigation was added via a polling hook
+    (`src/menu/useGamepad.ts`): a `requestAnimationFrame` loop reads `navigator.getGamepads()` and
+    emits *edge-triggered* semantic actions (D-pad/left-stick → up/down/left/right, A → confirm,
+    B → back, Start → launch) for a standard-mapping controller. The view keeps a single focus cursor
+    across songs → instruments → Start; D-pad moves it, A activates the focused item, and a live hint
+    shows when a controller connects. Mouse and keyboard still work (hover syncs focus; radio/toggle
+    semantics preserved via `role="radio"`/`aria-pressed`). Tests: pure `readActions`/`stepActions`
+    units cover button/axis mapping and rising-edge detection (6 new). Re-verified: `npm run
+    typecheck`, `npm test` (55 passing), and `npm run build` all green.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 

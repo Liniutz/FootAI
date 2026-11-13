@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 import threading
 import time
 
+ONSET_STALE_SEC = 0.25
+
 
 @dataclass(frozen=True)
 class SessionConfig:
@@ -17,7 +19,7 @@ class SessionConfig:
     channels: int = 1
     audio_device: str | int | None = None
     prefer_jack: bool = True
-    pitch_backend: str = "aubio"  # "aubio" | "librosa" | "crepe"
+    pitch_backend: str = "auto"  # "auto" | "aubio" | "librosa" | "crepe"
     onset_threshold: float = 0.35
     silence_db: float = -42.0
     silence_hold_sec: float = 0.35
@@ -51,6 +53,8 @@ class MusicalState:
 
     is_playing: bool = False
     bpm: float = 0.0
+    bar: int = 0
+    beat: int = 0
     detected_pitch_hz: float = 0.0
     detected_note: str = "N/A"
     detected_midi_note: int = 0
@@ -66,6 +70,9 @@ class MusicalState:
         *,
         is_playing: bool | None = None,
         bpm: float | None = None,
+        reset_bpm: bool = False,
+        bar: int | None = None,
+        beat: int | None = None,
         pitch_hz: float | None = None,
         note: str | None = None,
         midi_note: int | None = None,
@@ -77,8 +84,14 @@ class MusicalState:
         with self._lock:
             if is_playing is not None:
                 self.is_playing = is_playing
+            if reset_bpm:
+                self.bpm = 0.0
             if bpm is not None and 40.0 <= bpm <= 240.0:
                 self.bpm = round(bpm, 2)
+            if bar is not None:
+                self.bar = bar
+            if beat is not None:
+                self.beat = beat
             if pitch_hz is not None:
                 self.detected_pitch_hz = round(pitch_hz, 2)
             if note is not None:
@@ -98,6 +111,9 @@ class MusicalState:
     def snapshot(self, consume_onset: bool = False) -> dict[str, object]:
         """Return a JSON-serializable snapshot of the current musical state."""
         with self._lock:
+            # An onset nobody consumed within one telemetry window is stale; don't replay it
+            if self.onset_detected and (time.time() - self.last_onset_ts) > ONSET_STALE_SEC:
+                self.onset_detected = False
             onset_flag = self.onset_detected
             if consume_onset:
                 self.onset_detected = False
@@ -105,6 +121,8 @@ class MusicalState:
                 "timestamp": time.time(),
                 "is_playing": self.is_playing,
                 "bpm": self.bpm,
+                "bar": self.bar,
+                "beat": self.beat,
                 "detected_pitch": {
                     "hz": self.detected_pitch_hz,
                     "note": self.detected_note,
