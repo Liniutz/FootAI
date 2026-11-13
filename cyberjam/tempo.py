@@ -23,15 +23,15 @@ PRIOR_BPM = 110.0
 PRIOR_WIDTH_OCT = 1.4  # std-dev of the log2 prior in octaves (soft, never excludes a tempo)
 
 # Comb weights over lag multiples of the beat period: (multiple, weight).
-# Tuned on synthetic strum patterns (quarters / 8ths / 16ths / folk, jitter + noise): the 3x
-# and 8x lags disambiguate dotted-beat and half/double-tempo confusions typical for solo guitar.
+# Tuned on strummed patterns and riffs: favoring 1x/2x/3x and slightly penalising
+# high-subdivision multiples (4x, 8x) avoids octave/subdivision jumps on arpeggios.
 _COMB: tuple[tuple[float, float], ...] = (
     (0.5, 0.2),
     (1.0, 1.0),
     (2.0, 0.6),
-    (3.0, 0.6),
-    (4.0, 0.3),
-    (8.0, 0.4),
+    (3.0, 0.5),
+    (4.0, 0.2),
+    (8.0, 0.25),
 )
 
 
@@ -169,3 +169,47 @@ class GuitarTempoTracker:
 
     def _close(self, a: float, b: float) -> bool:
         return abs(a - b) <= self.jump_tolerance * max(a, b)
+
+
+def score_candidates(
+    env: np.ndarray,
+    fps: float,
+    min_bpm: float = MIN_BPM,
+    max_bpm: float = MAX_BPM,
+    prior_bpm: float = PRIOR_BPM,
+    prior_width_oct: float = PRIOR_WIDTH_OCT,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Return ``(bpms, raw_comb_scores, prior_weighted_scores)`` or ``None`` if no rhythm."""
+    x = np.asarray(env, dtype=np.float64)
+    n = len(x)
+    if n < int(2.0 * fps):
+        return None
+
+    x = x - np.mean(x)
+    x = np.maximum(x, 0.0)
+    peak = float(np.max(x))
+    if peak <= 1e-9:
+        return None
+    x = np.sqrt(x / peak)
+
+    nfft = 1 << int(np.ceil(np.log2(2 * n)))
+    spec = np.fft.rfft(x, nfft)
+    ac = np.fft.irfft(spec * np.conj(spec), nfft)[:n]
+    if ac[0] <= 1e-12:
+        return None
+    ac = ac / ac[0]
+    ac = ac / np.maximum(1.0 - np.arange(n) / n, 0.25)
+
+    bpms = np.arange(min_bpm, max_bpm + 0.01, 0.5)
+    lags = fps * 60.0 / bpms
+    lag_axis = np.arange(n, dtype=np.float64)
+
+    scores = np.zeros_like(bpms)
+    for mult, weight in _COMB:
+        mlags = lags * mult
+        valid = mlags < (n * 0.6)
+        vals = np.interp(mlags, lag_axis, ac)
+        scores += np.where(valid, weight * vals, 0.0)
+
+    prior = np.exp(-0.5 * (np.log2(bpms / prior_bpm) / prior_width_oct) ** 2)
+    return bpms, scores, scores * prior
