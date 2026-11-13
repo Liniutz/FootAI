@@ -137,7 +137,7 @@ class AudioDSPEngine:
         self._noise_gate_rms = 10.0 ** (config.silence_db / 20.0)
         self._last_active_wall: float = 0.0
 
-        self._prev_mag: np.ndarray | None = None
+        self._prev_log_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
         self._fps = config.sample_rate / config.block_size
         self._onset_env: deque[float] = deque(maxlen=int(7.0 * self._fps))
@@ -151,6 +151,7 @@ class AudioDSPEngine:
         self._rolling_buf: deque[float] = deque(maxlen=win)
         self._hann = np.hanning(hop).astype(np.float32)
         self._freqs = np.fft.rfftfreq(hop, d=1.0 / config.sample_rate)
+        self._pick_band_mask = (self._freqs >= 150.0) & (self._freqs <= 6000.0)
 
         self._loopback: PipeWireLoopback | None = (
             PipeWireLoopback() if config.enable_pipewire_loopback else None
@@ -383,18 +384,41 @@ class AudioDSPEngine:
             return raw_bpm
         return (0.65 * prev_bpm) + (0.35 * raw_bpm)
 
+    @staticmethod
+    def _compute_superflux(
+        mag_band: np.ndarray,
+        prev_log_mag: np.ndarray | None,
+        rms: float,
+    ) -> tuple[float, np.ndarray]:
+        """Compute vibrato-suppressed log-compressed SuperFlux weighted by RMS accent."""
+        log_mag = np.log1p(10.0 * mag_band)
+        if prev_log_mag is None or len(prev_log_mag) != len(log_mag):
+            return 0.0, log_mag
+
+        # 3-bin maximum filter on previous frame suppresses vibrato/pitch-bend bin drift
+        prev_max = np.maximum(
+            prev_log_mag,
+            np.maximum(np.roll(prev_log_mag, 1), np.roll(prev_log_mag, -1)),
+        )
+        prev_max[0] = np.maximum(prev_log_mag[0], prev_log_mag[1])
+        prev_max[-1] = np.maximum(prev_log_mag[-1], prev_log_mag[-2])
+
+        raw_flux = float(np.sum(np.maximum(0.0, log_mag - prev_max)))
+        # Downbeat accent weighting: emphasize strong strums over soft upstrokes
+        accent_weight = 0.5 + min(1.5, rms * 10.0)
+        return raw_flux * accent_weight, log_mag
+
     def _fallback_onset_and_bpm(self, mag: np.ndarray | None, rms: float) -> tuple[bool, float | None]:
-        """Lightweight spectral-flux onset detector & 2-3 bar tempogram BPM tracker."""
+        """SuperFlux onset detector & 2-3 bar tempogram BPM tracker for solo guitar."""
         if mag is None or rms <= self._noise_gate_rms:
-            self._prev_mag = mag
+            self._prev_log_mag = None
             return False, None
 
-        if self._prev_mag is None:
-            self._prev_mag = mag
-            return False, None
-
-        flux = float(np.sum(np.maximum(0.0, mag - self._prev_mag)))
-        self._prev_mag = mag
+        flux, self._prev_log_mag = self._compute_superflux(
+            mag[self._pick_band_mask],
+            self._prev_log_mag,
+            rms,
+        )
         self._flux_history.append(flux)
         self._onset_env.append(flux)
 
@@ -403,7 +427,7 @@ class AudioDSPEngine:
 
         mean_flux = float(np.mean(self._flux_history))
         now = time.monotonic()
-        is_onset = flux > (mean_flux * 1.85 + 0.5) and (now - self._last_onset_wall) > 0.12
+        is_onset = flux > (mean_flux * 1.65 + 0.15) and (now - self._last_onset_wall) > 0.12
 
         bpm: float | None = None
         if (now - self._last_bpm_calc_wall) >= 2.0 and len(self._onset_env) >= int(3.8 * self._fps):
