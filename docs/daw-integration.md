@@ -22,3 +22,10 @@ bridge.set_transport(True)
 1. Route your guitar input into both CyberJam and an Ardour audio track (with amp simulation or effects).
 2. Connect CyberJam's virtual MIDI output (**`CyberJam_Band`**) to Ardour's MIDI track inputs (Channel 10 for drums, Channel 2 for bass/synth).
 3. Connect Ardour's Master Output to your audio interface speakers.
+
+## 4. Routing DAW Audio to Visuals (`TouchDesigner` / `React`)
+To ensure your visualizers receive the final processed DAW audio (with amp sims, effects, and mixing) instead of raw dry guitar:
+1. In Ardour, select your Master Bus or a designated Visuals Submix bus.
+2. Open `qpwgraph`.
+3. Connect **Ardour Master Out (or Submix Out)** $\rightarrow$ **`CyberJam_VisualIn playback_FL / playback_FR`** (spawned via `--pipewire-loopback`).
+4. TouchDesigner or your Web Visualizer can then open the **`CyberJam Visual Audio`** virtual source and react to the fully produced DAW master mix at 60 FPS.
