@@ -1,0 +1,17 @@
+/* Self-hosted fonts (offline-safe). Both are SIL OFL 1.1 — see LICENSE.txt. */
+
+@font-face {
+  font-family: "Metal Mania";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./MetalMania-Regular.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Russo One";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./RussoOne-Regular.ttf") format("truetype");
+}

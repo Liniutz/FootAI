@@ -29,3 +29,12 @@ export const VISUAL_AUDIO_DEVICE_LABEL = "CyberJam Visual Audio";
 /** Engine defaults (from cyberjam/config.py), used as selection fallbacks. */
 export const DEFAULT_BPM = 120;
 export const DEFAULT_KEY = "E";
+
+/**
+ * Virtual MIDI port created by the engine (`mido`/`python-rtmidi`, virtual=True)
+ * carrying the ML band output. Read via the Web MIDI API.
+ *   - Channel 1  (0-based 0): Wekinator CC modulation
+ *   - Channel 2  (0-based 1): ML bassline
+ *   - Channel 10 (0-based 9): ML drums
+ */
+export const BAND_MIDI_PORT_NAME = "CyberJam_Band";

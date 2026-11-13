@@ -4,19 +4,35 @@
   min-height: 100%;
 }
 
+/* --- Header: forged metal title --- */
 .app__header {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  padding: 0.75rem 1.25rem;
-  border-bottom: 1px solid #1d2330;
+  padding: 1rem 1.5rem;
+  border-bottom: 2px solid var(--panel-border);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.06),
+    transparent
+  );
 }
 
 .app__title {
   margin: 0;
-  font-size: 1.25rem;
-  letter-spacing: 0.08em;
-  color: #6ee7ff;
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 4.5vw, 3rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  /* White header text for visibility, carved dark edges for grit (no glow). */
+  color: #ffffff;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.7),
+    0 2px 3px rgba(0, 0, 0, 0.8);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app__title { animation: none; }
 }
 
 .app__main {
@@ -24,44 +40,100 @@
   padding: 1.5rem;
 }
 
-.launcher__button {
-  margin: 1rem 0;
-  padding: 0.75rem 1.25rem;
-  border: 1px solid #6ee7ff;
-  border-radius: 8px;
-  background: #1e3a5f;
+/* --- Launcher --- */
+.launcher {
+  max-width: 720px;
+  margin: 4vh auto 0;
+  padding: 2rem;
+  text-align: center;
+  border: 2px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+    0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.launcher h2 {
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  margin: 0 0 0.5rem;
   color: #ffffff;
-  font: inherit;
-  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.7),
+    0 2px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Big arcade "START" buttons share this look. */
+.launcher__button {
+  margin: 1.25rem 0;
+  padding: 0.9rem 2.4rem;
+  border: 1px solid #1c1c1c;
+  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0a0a0a;
+  background: linear-gradient(180deg, #ffffff 0%, #c4c4c4 55%, #8a8a8a 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.4),
+    0 4px 0 #2a2a2a,
+    0 6px 10px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
   cursor: pointer;
+  transition: transform 80ms ease, box-shadow 80ms ease;
 }
 
 .launcher__button:hover {
-  background: #255082;
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.launcher__button:active {
+  transform: translateY(3px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.4),
+    0 1px 0 #2a2a2a,
+    0 2px 5px rgba(0, 0, 0, 0.6);
 }
 
 .launcher__hint {
-  color: #94a3b8;
+  color: var(--ink-dim);
   font-size: 0.9rem;
 }
 
 .view h2 {
   margin-top: 0;
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+  color: #ffffff;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.7),
+    0 2px 3px rgba(0, 0, 0, 0.8);
 }
 
+/* --- Backstage status strip (was "debug-panel") --- */
 .debug-panel {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  align-items: center;
   padding: 0.5rem 1.25rem;
-  border-top: 1px solid #1d2330;
-  font-size: 0.8rem;
-  color: #94a3b8;
-  background: #0d1119;
+  border-top: 2px solid var(--panel-border);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  background: rgba(10, 7, 6, 0.75);
 }
 
 .debug-panel strong {
-  color: #64748b;
+  color: var(--fire-mid);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
 }

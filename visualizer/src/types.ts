@@ -101,3 +101,40 @@ export interface SessionSelection {
 
 /** The two top-level views of the app. */
 export type AppView = "menu" | "visualizer";
+
+// ---------------------------------------------------------------------------
+// Band MIDI (Extension track E — read from CyberJam_Band via Web MIDI)
+// ---------------------------------------------------------------------------
+
+/** Role a MIDI channel maps to, per docs/contracts-and-apis.md §3. */
+export type MidiRole = "drums" | "bass" | "cc";
+
+export type MidiStatus =
+  | "idle"
+  | "requesting"
+  | "active"
+  | "denied"
+  | "port-missing"
+  | "unsupported";
+
+/** A parsed band MIDI event (note or CC) tagged with its role. */
+export interface BandMidiEvent {
+  /** Performance-clock timestamp in ms (from the MIDI event). */
+  time: number;
+  role: MidiRole;
+  /** 0-based MIDI channel on the wire (0, 1, or 9). */
+  channel: number;
+  kind: "note_on" | "note_off" | "cc";
+  /** Note number (note events) or CC number (cc events). */
+  data1: number;
+  /** Velocity (note events) or CC value (cc events), 0-127. */
+  data2: number;
+}
+
+/** Performance "flow" mood derived from telemetry (Extension track E). */
+export type PerformanceMood =
+  | "idle"
+  | "warming"
+  | "playing"
+  | "hyped"
+  | "slump";

@@ -9,7 +9,10 @@
 import { create } from "zustand";
 import type {
   AudioStatus,
+  BandMidiEvent,
   ConnectionStatus,
+  MidiStatus,
+  PerformanceMood,
   SessionSelection,
   TelemetryFrame,
 } from "./types";
@@ -19,6 +22,9 @@ export const INITIAL_SELECTION: SessionSelection = {
   songId: null,
   instrumentIds: [],
 };
+
+/** Max band MIDI events retained for the scrolling ribbon history. */
+export const BAND_EVENT_CAP = 512;
 
 export interface VisualizerState {
   // --- Live telemetry ----------------------------------------------------
@@ -31,6 +37,18 @@ export interface VisualizerState {
 
   audioStatus: AudioStatus;
   setAudioStatus: (status: AudioStatus) => void;
+
+  // --- Band MIDI (track E) ----------------------------------------------
+  midiStatus: MidiStatus;
+  setMidiStatus: (status: MidiStatus) => void;
+  bandEvents: BandMidiEvent[];
+  pushBandEvent: (event: BandMidiEvent) => void;
+  clearBandEvents: () => void;
+
+  // --- Performance flow (track E) ---------------------------------------
+  flow: number; // 0..1
+  mood: PerformanceMood;
+  setFlow: (flow: number, mood: PerformanceMood) => void;
 
   // --- Menu selection (synced across windows via sync.ts) ----------------
   selection: SessionSelection;
@@ -49,6 +67,22 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
 
   audioStatus: "idle",
   setAudioStatus: (audioStatus) => set({ audioStatus }),
+
+  midiStatus: "idle",
+  setMidiStatus: (midiStatus) => set({ midiStatus }),
+  bandEvents: [],
+  pushBandEvent: (event) =>
+    set((state) => {
+      const next = state.bandEvents.length >= BAND_EVENT_CAP
+        ? [...state.bandEvents.slice(state.bandEvents.length - BAND_EVENT_CAP + 1), event]
+        : [...state.bandEvents, event];
+      return { bandEvents: next };
+    }),
+  clearBandEvents: () => set({ bandEvents: [] }),
+
+  flow: 0,
+  mood: "idle",
+  setFlow: (flow, mood) => set({ flow, mood }),
 
   selection: INITIAL_SELECTION,
   setSelection: (selection) => set({ selection }),

@@ -31,32 +31,32 @@ function Launcher() {
 
   return (
     <section aria-label="Launcher" className="launcher">
-      <h2>CyberJam — Screens</h2>
+      <h2>🎸 TAKE THE STAGE</h2>
 
       {result === "opened" ? (
         <p className="launcher__hint">
-          Opened the Menu and Visualizer in separate windows — drag each to its
+          Menu and Visualizer launched in separate windows — drag each to its
           screen. You can close this tab.
         </p>
       ) : (
         <>
           <p>
             {blocked
-              ? "Your browser blocked the automatic split. Click below to open both screens:"
-              : "Opening the Menu and Visualizer screens…"}
+              ? "Your browser held back the second screen. Hit the button to go live:"
+              : "Rolling out the two screens…"}
           </p>
           <button
             type="button"
             className="launcher__button"
             onClick={() => setResult(openBothScreens())}
           >
-            Open both screens
+            ▶ Start the Show
           </button>
         </>
       )}
 
       <p className="launcher__hint">
-        Selections made in the Menu window appear live in the Visualizer window.
+        Pick your song on the Menu screen — it lights up the Visualizer live.
       </p>
     </section>
   );

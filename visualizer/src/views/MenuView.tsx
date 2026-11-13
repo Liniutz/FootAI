@@ -5,8 +5,8 @@
 export function MenuView() {
   return (
     <section aria-label="Menu" className="view view--menu">
-      <h2>Menu</h2>
-      <p>Song &amp; instrument selection will be built here (Lane B, Tasks 4-5).</p>
+      <h2>🎵 PICK YOUR TRACK</h2>
+      <p>Song &amp; instrument select — coming up (Lane B, Tasks 4-5).</p>
     </section>
   );
 }
