@@ -139,8 +139,10 @@ class AudioDSPEngine:
 
         self._prev_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
-        self._onset_times: deque[float] = deque(maxlen=8)
+        self._onset_times: deque[float] = deque(maxlen=24)
         self._last_onset_wall: float = 0.0
+        self._last_beat_wall: float = 0.0
+        self._smoothed_bpm: float | None = None
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
         self._hann = np.hanning(hop).astype(np.float32)
@@ -308,9 +310,37 @@ class AudioDSPEngine:
             return 0.0
         return float(np.sum(self._freqs * mag) / mag_sum)
 
+    @staticmethod
+    def _estimate_bpm_from_onsets(onset_times: list[float], prev_bpm: float | None) -> float | None:
+        """Compute a stabilized BPM from beat timestamps using octave folding and EMA smoothing."""
+        if len(onset_times) < 5:
+            return prev_bpm
+
+        intervals = np.diff(onset_times)
+        valid = intervals[(intervals >= 0.25) & (intervals <= 1.6)]
+        if len(valid) < 4:
+            return prev_bpm
+
+        median_ioi = float(np.median(valid))
+        # Reject outliers deviating > 35% from the median beat interval
+        inliers = valid[np.abs(valid - median_ioi) <= (0.35 * median_ioi)]
+        if len(inliers) < 3:
+            return prev_bpm
+
+        raw_bpm = 60.0 / float(np.median(inliers))
+        # Fold double-time / half-time subdivisions into a natural 70-165 BPM band
+        while raw_bpm > 165.0:
+            raw_bpm *= 0.5
+        while raw_bpm < 70.0:
+            raw_bpm *= 2.0
+
+        if prev_bpm is None:
+            return raw_bpm
+        return (0.85 * prev_bpm) + (0.15 * raw_bpm)
+
     def _fallback_onset_and_bpm(self, mag: np.ndarray | None, rms: float) -> tuple[bool, float | None]:
-        """Lightweight spectral-flux onset detector & IOI BPM tracker when aubio is unavailable."""
-        if mag is None or rms <= 0.002:
+        """Lightweight spectral-flux onset detector & stabilized IOI BPM tracker."""
+        if mag is None or rms <= self._noise_gate_rms:
             self._prev_mag = mag
             return False, None
 
@@ -331,12 +361,20 @@ class AudioDSPEngine:
         bpm: float | None = None
         if is_onset:
             self._last_onset_wall = now
-            self._onset_times.append(now)
-            if len(self._onset_times) >= 3:
-                intervals = np.diff(list(self._onset_times))
-                valid = intervals[(intervals >= 0.25) & (intervals <= 1.5)]
-                if len(valid) > 0:
-                    bpm = 60.0 / float(np.median(valid))
+            # Reset beat history after a long pause (> 2.5s)
+            if self._onset_times and (now - self._onset_times[-1]) > 2.5:
+                self._onset_times.clear()
+                self._smoothed_bpm = None
+
+            # Use a 280ms beat-level debounce so fast pick subdivisions don't spike BPM
+            if (now - self._last_beat_wall) >= 0.28:
+                self._last_beat_wall = now
+                self._onset_times.append(now)
+                self._smoothed_bpm = self._estimate_bpm_from_onsets(
+                    list(self._onset_times),
+                    self._smoothed_bpm,
+                )
+                bpm = self._smoothed_bpm
         return is_onset, bpm
 
     def _estimate_pitch(self, samples: np.ndarray, frame_counter: int) -> float:

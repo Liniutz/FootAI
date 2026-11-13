@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from cyberjam.audio_dsp import hz_to_note_info
+from cyberjam.audio_dsp import AudioDSPEngine, hz_to_note_info
 from cyberjam.config import MusicalState, SessionConfig
 from cyberjam.ml_brain import generate_bass_midi, generate_drum_midi
 from cyberjam.osc_wekinator import _float_to_cc_value
@@ -52,6 +52,25 @@ class TestCyberJamCore(unittest.TestCase):
             self.assertLessEqual(ev.note, 127)
             self.assertGreaterEqual(ev.velocity, 1)
             self.assertLessEqual(ev.velocity, 127)
+
+    def test_bpm_smoothing_and_octave_folding(self) -> None:
+        # 5 steady beats at 0.5s intervals = 120 BPM
+        onsets_120 = [0.0, 0.5, 1.0, 1.5, 2.0]
+        bpm = AudioDSPEngine._estimate_bpm_from_onsets(onsets_120, None)
+        self.assertIsNotNone(bpm)
+        self.assertAlmostEqual(bpm, 120.0, places=1)
+
+        # Double-time 0.3s intervals (200 BPM) should fold to 100 BPM
+        onsets_200 = [0.0, 0.3, 0.6, 0.9, 1.2]
+        folded = AudioDSPEngine._estimate_bpm_from_onsets(onsets_200, None)
+        self.assertIsNotNone(folded)
+        self.assertAlmostEqual(folded, 100.0, places=1)
+
+        # Single outlier should be damped by EMA + outlier rejection
+        smoothed = AudioDSPEngine._estimate_bpm_from_onsets([0.0, 0.5, 1.0, 1.5, 2.0, 2.3], 120.0)
+        self.assertIsNotNone(smoothed)
+        self.assertGreater(smoothed, 115.0)
+        self.assertLess(smoothed, 125.0)
 
 
 if __name__ == "__main__":
