@@ -33,7 +33,7 @@ pip install -r requirements.txt
 ```
 
 > [!NOTE]
-> On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cyberjam/audio_dsp.py` automatically falls back to a NumPy spectral-flux onset/IOI-BPM tracker and `librosa.yin` pitch estimator if the `aubio` C-extension is absent.
+> On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cyberjam/audio_dsp.py` automatically falls back to SuperFlux onsets and a `librosa.yin` pitch estimator (BPM always uses the NumPy guitar tempo tracker in `cyberjam/tempo.py`). `aubio` is optional in `requirements.txt` if the `aubio` C-extension is absent.
 
 ## 3. Running the Session
 
@@ -56,8 +56,9 @@ pw-jack .venv/bin/python run_session.py --pipewire-loopback
 | `--device` | `None` | Audio input device index or name substring (e.g., `pipewire`, `4`) |
 | `--sample-rate` | `48000` | Audio sample rate in Hz |
 | `--block-size` | `512` | Callback buffer size in frames (`512` @ 48kHz ≈ `10.67 ms`) |
-| `--pitch-backend` | `aubio` | Pitch tracker: `aubio`, `librosa`, or `crepe` |
+| `--pitch-backend` | `auto` | Pitch tracker: `auto` (aubio if installed, else librosa), `aubio`, `librosa`, or `crepe` |
 | `--noise-gate-db` | `-42.0` | RMS noise gate threshold in dBFS (`is_playing` & pitch/onset gating) |
+| *(exit code 1)* | | If UDP `12000` / TCP `8080` are taken, CyberJam logs "another session running?" and exits with code `1` instead of a traceback |
 | `--no-jack` | `False` | Skip JACK host API preference and use default system API |
 | `--pipewire-loopback` | `False` | Spawn `pw-loopback` Virtual Source for TouchDesigner / React |
 | `--verbose`, `-v` | `False` | Enable debug logging |

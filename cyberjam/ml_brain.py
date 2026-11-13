@@ -139,43 +139,69 @@ class MLSequencer:
         pending_note_offs: dict[int, list[tuple[int, int]]] = {}
         next_step_time = time.perf_counter()
 
-        while not self._stop_event.is_set():
-            snap = self.state.snapshot()
-            raw_bpm = float(snap["bpm"])  # type: ignore[arg-type]
-            bpm = raw_bpm if raw_bpm > 0.0 else self.config.default_bpm
-            pitch_info = snap["detected_pitch"]  # type: ignore[assignment]
-            raw_key = str(pitch_info["key"])  # type: ignore[index]
-            key = raw_key if raw_key != "N/A" else self.config.default_key
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    step, next_step_time, drum_pattern, bass_pattern = self._tick(
+                        step, next_step_time, drum_pattern, bass_pattern, pending_note_offs
+                    )
+                except Exception:
+                    logger.exception("ML sequencer step failed; continuing")
+                    self._stop_event.wait(timeout=0.05)
+                    step = (step + 1) % 16
+                    next_step_time = time.perf_counter()
+        finally:
+            self._flush_pending(pending_note_offs)
 
-            # Refresh bar patterns at the start of every 4/4 bar
-            if step == 0:
-                drum_pattern = generate_drum_midi(bpm)
-                bass_pattern = generate_bass_midi(key, bpm)
-
-            # 1. Release any notes scheduled to end on this step
-            for ch, note in pending_note_offs.pop(step, []):
-                self.midi.note_off(ch, note)
-
-            # 2. Trigger drum & bass notes for this step
-            self._trigger_step_events(step, drum_pattern, self.config.drum_channel, pending_note_offs)
-            self._trigger_step_events(step, bass_pattern, self.config.bass_channel, pending_note_offs)
-
-            # 3. Drift-compensated 16th-note sleep
-            sixteenth_sec = 60.0 / max(40.0, min(240.0, bpm)) / 4.0
-            next_step_time += sixteenth_sec
-            sleep_for = next_step_time - time.perf_counter()
-            if sleep_for > 0:
-                self._stop_event.wait(timeout=sleep_for)
-            else:
-                # Resync clock if thread was stalled
-                next_step_time = time.perf_counter()
-
-            step = (step + 1) % 16
-
-        # Flush any hanging notes on exit
+    def _flush_pending(self, pending_note_offs: dict[int, list[tuple[int, int]]]) -> None:
+        """Release every note that is still sounding (never leaves stuck MIDI notes)."""
         for notes in pending_note_offs.values():
             for ch, note in notes:
-                self.midi.note_off(ch, note)
+                try:
+                    self.midi.note_off(ch, note)
+                except Exception:
+                    logger.exception("Failed to flush note_off (ch=%d note=%d)", ch + 1, note)
+        pending_note_offs.clear()
+
+    def _tick(
+        self,
+        step: int,
+        next_step_time: float,
+        drum_pattern: list[MidiStepEvent],
+        bass_pattern: list[MidiStepEvent],
+        pending_note_offs: dict[int, list[tuple[int, int]]],
+    ) -> tuple[int, float, list[MidiStepEvent], list[MidiStepEvent]]:
+        snap = self.state.snapshot()
+        raw_bpm = float(snap["bpm"])  # type: ignore[arg-type]
+        bpm = raw_bpm if raw_bpm > 0.0 else self.config.default_bpm
+        pitch_info = snap["detected_pitch"]  # type: ignore[assignment]
+        raw_key = str(pitch_info["key"])  # type: ignore[index]
+        key = raw_key if raw_key != "N/A" else self.config.default_key
+
+        # Refresh bar patterns at the start of every 4/4 bar
+        if step == 0:
+            drum_pattern = generate_drum_midi(bpm)
+            bass_pattern = generate_bass_midi(key, bpm)
+
+        # 1. Release any notes scheduled to end on this step
+        for ch, note in pending_note_offs.pop(step, []):
+            self.midi.note_off(ch, note)
+
+        # 2. Trigger drum & bass notes for this step
+        self._trigger_step_events(step, drum_pattern, self.config.drum_channel, pending_note_offs)
+        self._trigger_step_events(step, bass_pattern, self.config.bass_channel, pending_note_offs)
+
+        # 3. Drift-compensated 16th-note sleep
+        sixteenth_sec = 60.0 / max(40.0, min(240.0, bpm)) / 4.0
+        next_step_time += sixteenth_sec
+        sleep_for = next_step_time - time.perf_counter()
+        if sleep_for > 0:
+            self._stop_event.wait(timeout=sleep_for)
+        else:
+            # Resync clock if thread was stalled
+            next_step_time = time.perf_counter()
+
+        return (step + 1) % 16, next_step_time, drum_pattern, bass_pattern
 
     def _trigger_step_events(
         self,

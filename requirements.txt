@@ -1,7 +1,8 @@
 # Core Audio & DSP ("The Ears")
 numpy>=1.26.0
 sounddevice>=0.4.6
-aubio>=0.4.9
+# aubio is OPTIONAL (no wheels for newer Python): without it CyberJam uses SuperFlux onsets + librosa.yin pitch
+# aubio>=0.4.9
 librosa>=0.10.1
 
 # Virtual MIDI Egress ("The Hands")

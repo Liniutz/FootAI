@@ -72,7 +72,7 @@ pip install -r requirements.txt
 ```
 
 > **Optional Neural Pitch Backend (`crepe`):**  
-> By default, the script uses `aubio` (`yinfft`) for sub-20ms pitch detection. If you want neural pitch tracking via `crepe`, uncomment `crepe` and `tensorflow` in `requirements.txt`, install them, and run with `--pitch-backend crepe`.
+> By default (`--pitch-backend auto`) the script uses `aubio` (`yinfft`) for sub-20ms pitch detection when it is installed, and `librosa.yin` otherwise. If you want neural pitch tracking via `crepe`, uncomment `crepe` and `tensorflow` in `requirements.txt`, install them, and run with `--pitch-backend crepe`.
 
 ### 2.3 Running the Router
 Launch under `pw-jack` so `sounddevice` exposes a native JACK/PipeWire node inside `qpwgraph`:

@@ -14,6 +14,8 @@ Two ML layers exist in the repository:
 * `generate_bass_midi(key: str, bpm: float) -> list[MidiStepEvent]`
   * Mock: Root/fifth/octave bass groove in octave 2 (`KEY_TO_BASS_MIDI`) from the detected key.
 
+Robustness: each step runs inside a guard (a failing `note_on`/`note_off` is logged and the loop continues), and a `try/finally` always flushes every pending `note_off` on stop. `MidiEgress.close()` additionally sends CC 120 (All Sound Off) and CC 123 (All Notes Off) on all 16 channels.
+
 To replace the stubs with custom models, keep the `MidiStepEvent(step, note, velocity, duration_steps)` return contract.
 
 ---

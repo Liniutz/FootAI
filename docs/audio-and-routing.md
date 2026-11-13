@@ -3,14 +3,21 @@
 ## 1. Audio Ingress & DSP (`audio_dsp.py`)
 
 * **Sample Rate & Block Size:** `48000 Hz`, `512` frames (`~10.67 ms` per block), mono (`float32`).
-* **Onset & BPM Detection:**
-  * Primary: `aubio.onset("default", 2048, 512, 48000)` + `aubio.tempo(...)`.
-  * Fallback (when `aubio` C-extension is unavailable): Log-compressed `150–6000 Hz` SuperFlux onset detector (with 3-bin vibrato suppression + RMS downbeat accent weighting) + `librosa.feature.tempo` tempogram BPM tracker over a 2–3 bar (`3.8s`–`7.0s`) onset-strength envelope, recomputed every `~2.0s`.
+* **Onset Detection:**
+  * `aubio.onset("default", 2048, 512, 48000)` when `aubio` is installed, otherwise the SuperFlux detector below. Onsets are debounced to `>= 100 ms`.
+* **BPM Detection (guitar-optimised, `cyberjam/tempo.py`, pure NumPy — same path with or without `aubio`):**
+  * Envelope: log-compressed `80–5000 Hz` SuperFlux (3-bin vibrato suppression + RMS accent weighting) at `~93.75` frames/s, kept in a `6 s` sliding window.
+  * Estimator: FFT autocorrelation scored with a *comb* over lag multiples `0.5x, 1x, 2x, 3x, 4x, 8x` of each candidate beat (resolves the half/double-tempo and dotted-beat ambiguity of strummed guitar), times a soft log-Gaussian prior around `110 BPM` (`±1.4 octaves`). Search range `60–180 BPM`.
+  * Stability: first lock needs two agreeing estimates (`±6%`); a tempo change needs two consecutive agreeing estimates; agreeing estimates are EMA-smoothed (`0.7/0.3`); estimates below confidence `1.6` are ignored. Re-estimated every `1 s` once `>= 3.8 s` of playing is buffered.
+  * Silence: a short pause pushes zero-flux frames (keeps real-time spacing); `> 3 s` silence resets the tracker, the bar/beat counter **and** `state.bpm` to `0.0`.
+  * Accuracy on synthetic strum envelopes (quarters/8ths/16ths/folk, jitter + noise): `~77%` exact (±4%) and `~91%` within a factor of 2 over `75–140 BPM`; end-to-end on synthesized Karplus-Strong chord strums it locked `80/100/120 BPM` exactly (one `80 BPM` 16th-note pattern locked at the double tempo `160`).
 * **Pitch & Key Estimation:**
-  * `aubio` (default): `aubio.pitch("yinfft", ...)` with confidence gate `>= 0.65`.
-  * `librosa`: `librosa.yin(..., fmin=75.0, fmax=1400.0)` over a 2048-sample rolling buffer (also used automatically if `aubio` is not installed).
+  * `auto` (default): `aubio` if the C-extension imports, otherwise `librosa`. The active backend is logged at startup.
+  * `aubio`: `aubio.pitch("yinfft", ...)` with confidence gate `>= 0.65` (falls back to `librosa` with a warning if `aubio` is missing).
+  * `librosa`: `librosa.yin(..., fmin=75.0, fmax=1400.0)` over a 2048-sample rolling buffer.
   * `crepe`: Optional neural pitch tracker (requires `crepe` + `tensorflow`).
-* **Spectral Centroid & RMS:** Computed per block via Hann-windowed `np.fft.rfft` and linear RMS (`noise gate: rms > 0.002`).
+* **Spectral Centroid & RMS:** Computed per block via Hann-windowed `np.fft.rfft` and linear RMS (`noise gate: rms > 10^(--noise-gate-db/20)`, default `-42 dBFS ≈ 0.008`).
+* **Real-time safety:** `_audio_callback` never logs or blocks; xruns are counted with a plain integer and reported by the DSP worker at debug level.
 
 ---
 
