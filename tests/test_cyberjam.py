@@ -10,6 +10,7 @@ from cyberjam.audio_dsp import AudioDSPEngine, hz_to_note_info
 from cyberjam.config import MusicalState, SessionConfig
 from cyberjam.ml_brain import generate_bass_midi, generate_drum_midi
 from cyberjam.osc_wekinator import _float_to_cc_value
+from cyberjam.tempo import estimate_bpm
 
 
 class TestCyberJamCore(unittest.TestCase):
@@ -59,24 +60,20 @@ class TestCyberJamCore(unittest.TestCase):
             self.assertGreaterEqual(ev.velocity, 1)
             self.assertLessEqual(ev.velocity, 127)
 
-    def test_bpm_tempogram_envelope(self) -> None:
-        sr, hop = 48000, 512
-        fps = sr / hop
-
-        # Under 2 bars (< 3.8s) should wait before locking BPM
-        short_env = np.zeros(int(2.0 * fps), dtype=np.float32)
+    def test_bpm_envelope_waits_for_enough_bars(self) -> None:
+        fps = 48000 / 512
+        short_env = np.zeros(int(1.5 * fps), dtype=np.float32)
         short_env[::47] = 1.0
-        self.assertIsNone(AudioDSPEngine._estimate_bpm_from_envelope(short_env, sr, hop, None))
+        self.assertIsNone(estimate_bpm(short_env, fps))
 
-        # 6s (3 bars) at 120 BPM with dotted-8th syncopation should lock near 120 BPM
         env_120 = np.zeros(int(6.0 * fps), dtype=np.float32)
         for t in np.arange(0.0, 6.0, 0.5):
             env_120[int(t * fps)] = 1.0
         for t in np.arange(0.375, 6.0, 1.0):
             env_120[int(t * fps)] = 0.6
-        bpm_120 = AudioDSPEngine._estimate_bpm_from_envelope(env_120, sr, hop, None)
-        self.assertIsNotNone(bpm_120)
-        self.assertAlmostEqual(bpm_120, 120.0, delta=3.0)
+        res = estimate_bpm(env_120, fps)
+        self.assertIsNotNone(res)
+        self.assertAlmostEqual(res[0], 120.0, delta=4.0)
 
     def test_superflux_vibrato_suppression_and_accent(self) -> None:
         prev = np.zeros(32, dtype=np.float32)

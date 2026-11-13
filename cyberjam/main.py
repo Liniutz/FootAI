@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import errno
 import logging
 import signal
 import sys
@@ -31,9 +32,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--block-size", type=int, default=512, help="Audio callback block size in frames (default: 512).")
     parser.add_argument(
         "--pitch-backend",
-        choices=("aubio", "librosa", "crepe"),
-        default="aubio",
-        help="Pitch detection backend (default: aubio).",
+        choices=("auto", "aubio", "librosa", "crepe"),
+        default="auto",
+        help="Pitch detection backend (default: auto = aubio if installed, else librosa).",
     )
     parser.add_argument(
         "--noise-gate-db",
@@ -116,6 +117,17 @@ def main(argv: list[str] | None = None) -> int:
         asyncio.run(run_async(config))
     except KeyboardInterrupt:
         pass
+    except OSError as exc:
+        if exc.errno == errno.EADDRINUSE:
+            logger.error(
+                "A network port is already in use (%s). Is another CyberJam session running? "
+                "Needs UDP %d (OSC) and TCP %d (WebSocket).",
+                exc,
+                config.osc_port,
+                config.ws_port,
+            )
+            return 1
+        raise
     return 0
 
 

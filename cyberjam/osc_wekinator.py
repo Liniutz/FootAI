@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 from typing import Any
 
 from pythonosc.dispatcher import Dispatcher
@@ -19,7 +20,14 @@ WEKINATOR_CC_MAP: tuple[int, ...] = (74, 71, 1, 11, 20, 21, 22, 23)
 
 
 def _float_to_cc_value(val: float) -> int:
-    """Convert normalized [0.0, 1.0] (or [0, 127]) float to MIDI CC 0..127."""
+    """Convert normalized [0.0, 1.0] (or [0, 127]) float to MIDI CC 0..127.
+
+    NaN maps to 0 and +/-inf clamp to the range ends, so malformed packets never raise.
+    """
+    if math.isnan(val):
+        return 0
+    if math.isinf(val):
+        return 127 if val > 0 else 0
     if 0.0 <= val <= 1.0:
         return max(0, min(127, int(round(val * 127.0))))
     return max(0, min(127, int(round(val))))
@@ -70,7 +78,7 @@ class WekinatorOSCServer:
                 cc_val = _float_to_cc_value(float(raw))
                 cc_num = WEKINATOR_CC_MAP[idx]
                 self.midi.control_change(self.config.cc_channel, cc_num, cc_val)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 logger.debug("Ignoring non-numeric OSC arg at %s: %r", address, raw)
 
     def _handle_explicit_cc(self, address: str, *args: Any) -> None:
@@ -82,21 +90,21 @@ class WekinatorOSCServer:
             cc_val = _float_to_cc_value(float(args[0]))
             if 0 <= cc_num <= 127:
                 self.midi.control_change(self.config.cc_channel, cc_num, cc_val)
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             logger.debug("Invalid explicit CC OSC message: %s %r", address, args)
 
     def _handle_rms(self, address: str, *args: Any) -> None:
         """Convenience handler mapping /cyberjam/rms -> CC 74 (Brightness/Cutoff)."""
-        if args:
-            try:
-                self.midi.control_change(self.config.cc_channel, 74, _float_to_cc_value(float(args[0])))
-            except (TypeError, ValueError):
-                pass
+        self._send_cc_from_arg(74, args)
 
     def _handle_centroid(self, address: str, *args: Any) -> None:
         """Convenience handler mapping /cyberjam/centroid -> CC 71 (Resonance/Timbre)."""
-        if args:
-            try:
-                self.midi.control_change(self.config.cc_channel, 71, _float_to_cc_value(float(args[0])))
-            except (TypeError, ValueError):
-                pass
+        self._send_cc_from_arg(71, args)
+
+    def _send_cc_from_arg(self, cc_num: int, args: tuple[Any, ...]) -> None:
+        if not args:
+            return
+        try:
+            self.midi.control_change(self.config.cc_channel, cc_num, _float_to_cc_value(float(args[0])))
+        except (TypeError, ValueError, OverflowError):
+            logger.debug("Ignoring invalid OSC value for CC %d: %r", cc_num, args[0])
