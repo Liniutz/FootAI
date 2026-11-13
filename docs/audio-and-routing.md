@@ -57,3 +57,7 @@ Open `qpwgraph` after starting the Python router and your DAW:
      * **Track 3 (Modulated Synth / Guitar FX):** MIDI Channel 1 (Wekinator MIDI CCs).
 4. **DAW $\rightarrow$ Museum Speakers:**
    * Connect **DAW Master Out `1 / 2`** $\rightarrow$ **`Scarlett Solo USB playback_FL / playback_FR`**.
+
+## Note on Singing & Sustained Vocals vs Percussive Instruments
+- When using `aubio` as the pitch backend, `aubio.tempo` can over-trigger on vocal vibrato or sustained notes, causing tempo estimates to drift higher (135–155 BPM).
+- For vocals, sustained guitar chords, or smooth melodies, using `--pitch-backend librosa` routes audio through the guitar/singing-optimised NumPy autocorrelation comb tracker (`cyberjam/tempo.py`), which correctly locks onto stable underlying tempos (such as 126 BPM) and rejects vocal envelope modulation.
