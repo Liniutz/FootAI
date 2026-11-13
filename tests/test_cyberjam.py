@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import unittest
 
+import numpy as np
+
 from cyberjam.audio_dsp import AudioDSPEngine, hz_to_note_info
 from cyberjam.config import MusicalState, SessionConfig
 from cyberjam.ml_brain import generate_bass_midi, generate_drum_midi
@@ -53,29 +55,24 @@ class TestCyberJamCore(unittest.TestCase):
             self.assertGreaterEqual(ev.velocity, 1)
             self.assertLessEqual(ev.velocity, 127)
 
-    def test_bpm_smoothing_and_octave_folding(self) -> None:
-        # Under 2 bars (< 3.8s or < 8 onsets) should wait before locking BPM
-        too_short = [0.0, 0.5, 1.0, 1.5, 2.0]
-        self.assertIsNone(AudioDSPEngine._estimate_bpm_from_onsets(too_short, None))
+    def test_bpm_tempogram_envelope(self) -> None:
+        sr, hop = 48000, 512
+        fps = sr / hop
 
-        # 2+ bars at 120 BPM (0.5s quarter notes over 4.0s)
-        bars_120 = [0.5 * i for i in range(9)]
-        bpm_120 = AudioDSPEngine._estimate_bpm_from_onsets(bars_120, None)
+        # Under 2 bars (< 3.8s) should wait before locking BPM
+        short_env = np.zeros(int(2.0 * fps), dtype=np.float32)
+        short_env[::47] = 1.0
+        self.assertIsNone(AudioDSPEngine._estimate_bpm_from_envelope(short_env, sr, hop, None))
+
+        # 6s (3 bars) at 120 BPM with dotted-8th syncopation should lock near 120 BPM
+        env_120 = np.zeros(int(6.0 * fps), dtype=np.float32)
+        for t in np.arange(0.0, 6.0, 0.5):
+            env_120[int(t * fps)] = 1.0
+        for t in np.arange(0.375, 6.0, 1.0):
+            env_120[int(t * fps)] = 0.6
+        bpm_120 = AudioDSPEngine._estimate_bpm_from_envelope(env_120, sr, hop, None)
         self.assertIsNotNone(bpm_120)
-        self.assertAlmostEqual(bpm_120, 120.0, delta=1.5)
-
-        # 2+ bars at 85 BPM (0.7059s quarter notes over 5.6s) should not double to 170 BPM
-        period_85 = 60.0 / 85.0
-        bars_85 = [period_85 * i for i in range(9)]
-        bpm_85 = AudioDSPEngine._estimate_bpm_from_onsets(bars_85, None)
-        self.assertIsNotNone(bpm_85)
-        self.assertAlmostEqual(bpm_85, 85.0, delta=1.5)
-
-        # Human-jittered 120 BPM with occasional 8th-note subdivisions
-        jittered_120 = [0.0, 0.51, 0.76, 1.02, 1.49, 2.01, 2.52, 2.75, 3.00, 3.49, 4.02]
-        bpm_j120 = AudioDSPEngine._estimate_bpm_from_onsets(jittered_120, None)
-        self.assertIsNotNone(bpm_j120)
-        self.assertAlmostEqual(bpm_j120, 120.0, delta=3.0)
+        self.assertAlmostEqual(bpm_120, 120.0, delta=3.0)
 
 
 if __name__ == "__main__":

@@ -139,7 +139,8 @@ class AudioDSPEngine:
 
         self._prev_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
-        self._onset_times: deque[float] = deque(maxlen=48)
+        self._fps = config.sample_rate / config.block_size
+        self._onset_env: deque[float] = deque(maxlen=int(7.0 * self._fps))
         self._last_onset_wall: float = 0.0
         self._last_bpm_calc_wall: float = 0.0
         self._smoothed_bpm: float | None = None
@@ -154,6 +155,15 @@ class AudioDSPEngine:
 
     def start(self) -> None:
         """Start the PipeWire loopback (if enabled), DSP worker thread, and audio stream."""
+        if not self._use_aubio:
+            # Pre-warm librosa/numba before opening the real-time audio stream
+            import librosa
+            _ = librosa.feature.tempo(
+                onset_envelope=np.zeros(int(4.0 * self._fps), dtype=np.float32),
+                sr=self.config.sample_rate,
+                hop_length=self.config.block_size,
+            )
+
         if self._loopback is not None:
             self._loopback.start()
 
@@ -279,6 +289,15 @@ class AudioDSPEngine:
                     pitch_hz = detected_hz
                     midi_note, note_str, key_str = hz_to_note_info(detected_hz)
             else:
+                # Keep real-time spacing in onset envelope during brief pauses; clear after 3s silence
+                if not self._use_aubio:
+                    if (now - self._last_active_wall) > 3.0:
+                        self._onset_env.clear()
+                        self._smoothed_bpm = None
+                        self._last_bpm_calc_wall = 0.0
+                    elif self._onset_env:
+                        self._onset_env.append(0.0)
+
                 # Reset pitch/playing state after silence hangover so UI doesn't freeze on stale notes
                 if (now - self._last_active_wall) >= self.config.silence_hold_sec:
                     is_playing = False
@@ -311,51 +330,35 @@ class AudioDSPEngine:
         return float(np.sum(self._freqs * mag) / mag_sum)
 
     @staticmethod
-    def _estimate_bpm_from_onsets(onset_times: list[float], prev_bpm: float | None) -> float | None:
-        """Estimate 4/4 BPM over a 2-3 bar onset window using beat-grid periodicity scoring."""
-        if len(onset_times) < 8:
+    def _estimate_bpm_from_envelope(
+        onset_env: np.ndarray,
+        sample_rate: int,
+        hop_length: int,
+        prev_bpm: float | None,
+    ) -> float | None:
+        """Estimate 4/4 BPM over a 2-3 bar onset-strength envelope using librosa tempogram."""
+        min_frames = int(3.8 * (sample_rate / hop_length))
+        if len(onset_env) < min_frames or float(np.max(onset_env)) <= 0.0:
             return prev_bpm
 
-        span = onset_times[-1] - onset_times[0]
-        if span < 3.8:  # Require ~2 bars of 4/4 musical context before locking BPM
+        import librosa
+
+        est = librosa.feature.tempo(
+            onset_envelope=onset_env,
+            sr=sample_rate,
+            hop_length=hop_length,
+            start_bpm=prev_bpm if prev_bpm is not None else 120.0,
+        )
+        raw_bpm = float(est[0]) if len(est) > 0 else 0.0
+        if not (40.0 <= raw_bpm <= 240.0):
             return prev_bpm
-
-        times = np.asarray(onset_times, dtype=np.float64)
-        # Use local intervals (adjacent, skip-1, skip-2) to avoid long-range drift accumulation
-        local_dts: list[np.ndarray] = []
-        for lag in (1, 2, 3):
-            if len(times) > lag:
-                local_dts.append(times[lag:] - times[:-lag])
-        if not local_dts:
-            return prev_bpm
-
-        diffs = np.concatenate(local_dts)
-        dt = diffs[(diffs >= 0.28) & (diffs <= 2.1)]
-        if len(dt) < 6:
-            return prev_bpm
-
-        candidates = np.arange(70.0, 166.0, 1.0, dtype=np.float64)
-        periods = 60.0 / candidates[:, None]  # Shape: (N_bpm, 1)
-        rem = np.mod(dt[None, :], periods)
-        phase_err = np.minimum(rem, periods - rem)
-        # Relative tolerance (8% of beat period) prevents high-BPM comb-density bias
-        sigma = 0.08 * periods
-        scores = np.mean(np.exp(-0.5 * (phase_err / sigma) ** 2), axis=1)
-
-        max_score = float(np.max(scores))
-        if max_score < 0.35:
-            return prev_bpm
-
-        # Break 2x harmonic ties by choosing the lowest BPM within 96% of peak alignment
-        best_idx = int(np.where(scores >= max_score * 0.96)[0][0])
-        raw_bpm = float(candidates[best_idx])
 
         if prev_bpm is None:
             return raw_bpm
-        return (0.75 * prev_bpm) + (0.25 * raw_bpm)
+        return (0.65 * prev_bpm) + (0.35 * raw_bpm)
 
     def _fallback_onset_and_bpm(self, mag: np.ndarray | None, rms: float) -> tuple[bool, float | None]:
-        """Lightweight spectral-flux onset detector & 2-3 bar 4/4 BPM tracker."""
+        """Lightweight spectral-flux onset detector & 2-3 bar tempogram BPM tracker."""
         if mag is None or rms <= self._noise_gate_rms:
             self._prev_mag = mag
             return False, None
@@ -367,6 +370,7 @@ class AudioDSPEngine:
         flux = float(np.sum(np.maximum(0.0, mag - self._prev_mag)))
         self._prev_mag = mag
         self._flux_history.append(flux)
+        self._onset_env.append(flux)
 
         if len(self._flux_history) < 8:
             return False, None
@@ -374,30 +378,19 @@ class AudioDSPEngine:
         mean_flux = float(np.mean(self._flux_history))
         now = time.monotonic()
         is_onset = flux > (mean_flux * 1.85 + 0.5) and (now - self._last_onset_wall) > 0.12
+
         bpm: float | None = None
-        if is_onset:
-            self._last_onset_wall = now
-            # Reset beat history after a long pause (> 3.0s)
-            if self._onset_times and (now - self._onset_times[-1]) > 3.0:
-                self._onset_times.clear()
-                self._smoothed_bpm = None
-                self._last_bpm_calc_wall = 0.0
-
-            self._onset_times.append(now)
-            # Trim to ~3 bars (last 7.5 seconds)
-            while self._onset_times and (now - self._onset_times[0]) > 7.5:
-                self._onset_times.popleft()
-
-            # Recompute BPM at most once every 2.0s (~1 bar) once 2+ bars are collected
-            if (now - self._last_bpm_calc_wall) >= 2.0:
-                estimated = self._estimate_bpm_from_onsets(
-                    list(self._onset_times),
-                    self._smoothed_bpm,
-                )
-                if estimated is not None:
-                    self._last_bpm_calc_wall = now
-                    self._smoothed_bpm = estimated
-                    bpm = estimated
+        if (now - self._last_bpm_calc_wall) >= 2.0 and len(self._onset_env) >= int(3.8 * self._fps):
+            estimated = self._estimate_bpm_from_envelope(
+                np.asarray(self._onset_env, dtype=np.float32),
+                self.config.sample_rate,
+                self.config.block_size,
+                self._smoothed_bpm,
+            )
+            if estimated is not None:
+                self._last_bpm_calc_wall = now
+                self._smoothed_bpm = estimated
+                bpm = estimated
         return is_onset, bpm
 
     def _estimate_pitch(self, samples: np.ndarray, frame_counter: int) -> float:
