@@ -71,6 +71,12 @@ class TestCyberJamCore(unittest.TestCase):
         self.assertIsNotNone(bpm_85)
         self.assertAlmostEqual(bpm_85, 85.0, delta=1.5)
 
+        # Human-jittered 120 BPM with occasional 8th-note subdivisions
+        jittered_120 = [0.0, 0.51, 0.76, 1.02, 1.49, 2.01, 2.52, 2.75, 3.00, 3.49, 4.02]
+        bpm_j120 = AudioDSPEngine._estimate_bpm_from_onsets(jittered_120, None)
+        self.assertIsNotNone(bpm_j120)
+        self.assertAlmostEqual(bpm_j120, 120.0, delta=3.0)
+
 
 if __name__ == "__main__":
     unittest.main()

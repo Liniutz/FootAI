@@ -321,9 +321,16 @@ class AudioDSPEngine:
             return prev_bpm
 
         times = np.asarray(onset_times, dtype=np.float64)
-        diffs = times[:, None] - times[None, :]
-        # Keep causal pairwise intervals between 0.25s and 4.5s
-        dt = diffs[(diffs >= 0.25) & (diffs <= 4.5)]
+        # Use local intervals (adjacent, skip-1, skip-2) to avoid long-range drift accumulation
+        local_dts: list[np.ndarray] = []
+        for lag in (1, 2, 3):
+            if len(times) > lag:
+                local_dts.append(times[lag:] - times[:-lag])
+        if not local_dts:
+            return prev_bpm
+
+        diffs = np.concatenate(local_dts)
+        dt = diffs[(diffs >= 0.28) & (diffs <= 2.1)]
         if len(dt) < 6:
             return prev_bpm
 
@@ -331,7 +338,8 @@ class AudioDSPEngine:
         periods = 60.0 / candidates[:, None]  # Shape: (N_bpm, 1)
         rem = np.mod(dt[None, :], periods)
         phase_err = np.minimum(rem, periods - rem)
-        sigma = 0.045
+        # Relative tolerance (8% of beat period) prevents high-BPM comb-density bias
+        sigma = 0.08 * periods
         scores = np.mean(np.exp(-0.5 * (phase_err / sigma) ** 2), axis=1)
 
         max_score = float(np.max(scores))
