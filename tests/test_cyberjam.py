@@ -78,6 +78,22 @@ class TestCyberJamCore(unittest.TestCase):
         self.assertIsNotNone(bpm_120)
         self.assertAlmostEqual(bpm_120, 120.0, delta=3.0)
 
+    def test_superflux_vibrato_suppression_and_accent(self) -> None:
+        prev = np.zeros(32, dtype=np.float32)
+        prev[10] = 2.0
+        # Shifted by 1 bin (vibrato) with same amplitude should produce zero flux
+        shifted = np.zeros(32, dtype=np.float32)
+        shifted[11] = (np.exp(2.0) - 1.0) / 10.0
+        flux_vib, _ = AudioDSPEngine._compute_superflux(shifted, prev, rms=0.05)
+        self.assertAlmostEqual(flux_vib, 0.0, places=5)
+
+        # True new transient at higher RMS should produce stronger weighted flux
+        attack = np.zeros(32, dtype=np.float32)
+        attack[20] = 5.0
+        flux_soft, _ = AudioDSPEngine._compute_superflux(attack, prev, rms=0.02)
+        flux_loud, _ = AudioDSPEngine._compute_superflux(attack, prev, rms=0.15)
+        self.assertGreater(flux_loud, flux_soft)
+
 
 if __name__ == "__main__":
     unittest.main()
