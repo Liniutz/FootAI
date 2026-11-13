@@ -49,6 +49,85 @@
   margin-top: 0;
 }
 
+.menu__group {
+  margin: 0 0 1.25rem;
+  padding: 0.75rem 1rem 1rem;
+  border: 1px solid #1d2330;
+  border-radius: 8px;
+}
+
+.menu__group legend {
+  padding: 0 0.4rem;
+  color: #6ee7ff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.menu__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0;
+  cursor: pointer;
+}
+
+.menu__toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.menu__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 2px solid #334155;
+  border-radius: 999px;
+  background: transparent;
+  color: #e2e8f0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.menu__toggle[aria-pressed="true"] {
+  color: #0d1119;
+  font-weight: 600;
+}
+
+.menu__swatch {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+}
+
+.menu__channel {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.menu__start {
+  padding: 0.75rem 1.5rem;
+  border: 1px solid #6ee7ff;
+  border-radius: 8px;
+  background: #1e3a5f;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.menu__start:hover:not(:disabled) {
+  background: #255082;
+}
+
+.menu__start:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .debug-panel {
   display: flex;
   flex-wrap: wrap;
