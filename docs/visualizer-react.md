@@ -283,12 +283,12 @@ lanes with the same dependency can run simultaneously.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 
-- [ ] **Task 3: Telemetry WebSocket client with reconnect and validation.**
+- [x] **Task 3: Telemetry WebSocket client with reconnect and validation.** ✅ *Done (Lane C).*
   - *Lane:* C (Visualizer). *Depends on:* Task 2. *Parallel with:* all of Lane B; independent of
     Tasks 6/7 within this lane.
   - *Objective:* Implement a `TelemetryClient` that connects to `ws://127.0.0.1:8080`, parses JSON
     into `TelemetryFrame`, validates/guards malformed frames, pushes valid frames into the store, and
-    auto-reconnects with backoff. Expose a `useTelemetry()` hook tied to component lifecycle.
+    auto-reconnects with backoff. Expose a `useTelemetry()` hook tied to component lifecycle. 
   - *Guidance:* Treat all socket data as untrusted — validate shape and clamp/guard before storing
     (e.g., ignore frames missing `detected_pitch`). Surface `connectionStatus`
     (`connecting | open | closed | error`). Build/test entirely against a mock `WebSocket` — no live
@@ -297,8 +297,12 @@ lanes with the same dependency can run simultaneously.
     and a close triggers a reconnect attempt.
   - *Demo:* With `run_session.py` running, the debug panel shows live `bpm`/`note`/`onset` at ~20 Hz;
     status flips to `open`. Without the engine, status shows reconnect attempts.
+  - *Result:* `src/telemetry/client.ts` (`parseTelemetryFrame` validator + `TelemetryClient` with an
+    injectable socket factory & exponential backoff capped at `TELEMETRY_RECONNECT_MAX_MS`) and
+    `src/telemetry/useTelemetry.ts` (hook pushing frames/status into the store). 9 unit tests cover
+    valid/malformed frames, reconnect-on-close, and no-reconnect-after-stop.
 
-- [ ] **Task 6: Web Audio capture from the PipeWire Virtual Source.**
+- [x] **Task 6: Web Audio capture from the PipeWire Virtual Source.** ✅ *Done (Lane C).*
   - *Lane:* C (Visualizer). *Depends on:* Task 2. *Parallel with:* all of Lane B; independent of
     Tasks 3/8 within this lane.
   - *Objective:* Implement an `AudioCapture` module that enumerates input devices, selects
@@ -312,8 +316,13 @@ lanes with the same dependency can run simultaneously.
     transitions, denied/missing handling, and teardown.
   - *Demo:* "Enable Audio" activates capture; `audioStatus` shows `active` (or a clear message if the
     virtual device is absent).
+  - *Result:* `src/audio/capture.ts` (`findVisualAudioDeviceId`, `AudioCapture` with an injectable
+    `MediaProvider` wrapping `enumerateDevices`/`getUserMedia`/`AudioContext`, exposing an
+    `AnalyserNode`) and `src/audio/useAudioCapture.ts` (hook with gesture-driven `start()`, store
+    `audioStatus` mirroring, and unmount teardown). 7 unit tests cover device selection, active/
+    denied/device-missing transitions, and track/context cleanup.
 
-- [ ] **Task 7: Live waveform/spectrum rendering surface.**
+- [x] **Task 7: Live waveform/spectrum rendering surface.** ✅ *Done (Lane C).*
   - *Lane:* C (Visualizer). *Depends on:* Task 6. *Parallel with:* all of Lane B.
   - *Objective:* Build the WebGL/Canvas render surface driven by the `AnalyserNode`, drawing a
     real-time waveform and/or spectrum in a `requestAnimationFrame` loop.
@@ -321,8 +330,13 @@ lanes with the same dependency can run simultaneously.
     Handle container resize; cap/cleanup the RAF loop on unmount to avoid leaks.
   - *Tests:* Pure buffer→drawing-data transform; mount/unmount starts/stops the RAF loop (mock RAF).
   - *Demo:* With audio active, playing guitar shows a live reacting waveform/spectrum.
+  - *Result:* Pure transforms in `src/visualizer/waveform.ts` (`timeDomainToPoints`,
+    `frequencyToBars`) + an injectable `RenderLoop` (`src/visualizer/renderLoop.ts`) decoupled from
+    React. `src/visualizer/WaveformCanvas.tsx` drives a PixiJS `Graphics` surface from the analyser
+    each RAF, with resize via `resizeTo` and full teardown (`loop.stop()` + `app.destroy`) on
+    unmount. 7 unit tests cover the transforms and RAF start/stop/idempotency.
 
-- [ ] **Task 8: Note & pitch visualization from telemetry.**
+- [x] **Task 8: Note & pitch visualization from telemetry.** ✅ *Done (Lane C).*
   - *Lane:* C (Visualizer). *Depends on:* Task 3. *Parallel with:* all of Lane B.
   - *Objective:* Render the "notes you play" from telemetry: current `detected_pitch.note`/`midi`/
     `key`, a pitch history trail, and a flash/pulse on `onset`. Map `rms` to intensity and
@@ -333,6 +347,15 @@ lanes with the same dependency can run simultaneously.
     with boundary cases (hz=0, note "N/A", onset toggling, clamped bpm/rms).
   - *Demo:* Playing a note shows the correct name + a pitch marker; strumming triggers onset pulses;
     silence clears the active-note indicator.
+  - *Result:* Pure mappings in `src/visualizer/noteVisuals.ts` (`frameToNoteVisual`, `midiToPosition`,
+    `centroidToColor`, `clamp`/`isSilent`) plus an `OnsetTracker` (fires once per new onset frame via
+    timestamp) and a bounded `PitchHistory` ring buffer. `src/visualizer/NotePitchPanel.tsx` renders
+    the current note, a pitch marker (intensity-scaled glow, centroid color), an onset pulse, and the
+    history trail, driven by the store's `latestFrame`; silence (`hz==0`/`note=="N/A"`) clears the
+    readout. 11 unit tests cover the mappings, onset-once, and ring-buffer bounds.
+  - *Wiring:* `VisualizerView` now calls `useTelemetry()` + `useAudioCapture()`, shows a telemetry/
+    audio status bar with an "Enable Audio" gesture button (incl. the `--pipewire-loopback`
+    device-missing guidance), and mounts `WaveformCanvas` + `NotePitchPanel`.
 
 ### Integration track (serial; after both lanes merge)
 
@@ -378,6 +401,122 @@ lanes with the same dependency can run simultaneously.
     convention.
   - *Tests:* N/A (docs) — verify links resolve and the schema matches the code.
   - *Demo:* A new contributor can run engine + visualizer from this doc alone.
+
+### Extension track E — Visualizer Experience (band ribbon, Adrian, flow)
+
+Added after Lane C per a product requirement: a Rocksmith-style band note ribbon, an animated
+pixel-art Adrian Barar (Cargo's founder) playing along, and performance-driven effects. All of it
+stays additive and within the documented pipeline — **no engine changes**.
+
+Design decisions (confirmed with the product owner):
+- The "notes to play" guide is reinterpreted as the **ML band's live notes** read from the
+  `CyberJam_Band` virtual MIDI port via the **Web MIDI API** (decision 1=d/2=b). MIDI is real-time
+  with no look-ahead, so the ribbon is a **rolling live history** of the last few seconds (2=a),
+  scrolling from a "now" line into the past, in **three lanes by role** (Drums Ch 10, Bass Ch 2,
+  Synth/FX-CC Ch 1) (1=a).
+- "Flow/correctness" is **flow-based** from telemetry — sustained energy (`rms`/onset density),
+  pitch stability, and tempo steadiness (3=a) — robust to mono pitch-detection noise.
+- Adrian is a **state-driven pixel-art sprite** with **placeholder art**, swappable later (4=a).
+
+> [!NOTE]
+> **Web MIDI constraint.** `navigator.requestMIDIAccess` requires a secure context (works on
+> `http://localhost`), user permission, and that the browser runs on the machine hosting the
+> `CyberJam_Band` port (the single-PC museum setup). The app degrades gracefully when MIDI access
+> or the port is unavailable (same pattern as the audio `device-missing` path).
+
+- [x] **Task 12: Web MIDI client for `CyberJam_Band`.** ✅ *Done.*
+  - *Lane:* E. *Depends on:* Sprint 0.
+  - *Objective:* Request Web MIDI access, locate the `CyberJam_Band` input port, and parse live
+    `note_on`/`note_off`/CC into typed `BandMidiEvent`s tagged with their role (drums/bass/cc) by
+    channel. Expose a `useBandMidi()` hook and a `midiStatus`
+    (`idle | requesting | active | denied | port-missing | unsupported`).
+  - *Guidance:* Treat MIDI bytes defensively. Map channels per
+    [`contracts-and-apis.md`](./contracts-and-apis.md) §3 (Ch 1 CC, Ch 2 bass, Ch 10 drums; 0-based
+    0/1/9 on the wire). Graceful fallback when unsupported/denied/port-missing. Build/test against a
+    mock `MIDIAccess`.
+  - *Tests:* Mock `requestMIDIAccess`; assert port selection by name, message parsing (note on/off,
+    running-status velocity-0 = note off, CC), channel→role mapping, and status transitions.
+  - *Result:* `src/midi/band.ts` (`parseMidiMessage`, `channelToRole`, `findBandInput`,
+    `BandMidiClient` with injectable `MidiProvider`) + `src/midi/useBandMidi.ts` (gesture-started
+    hook pushing events/status to the store). Store gained `bandEvents` (bounded ring, cap 512),
+    `midiStatus`. 13 unit tests. Documented in `contracts-and-apis.md` (Web MIDI consumer).
+
+- [x] **Task 13: Band note-highway ribbon (3 lanes).** ✅ *Done.*
+  - *Lane:* E. *Depends on:* Task 12.
+  - *Objective:* Render a bottom ribbon with three role lanes (Drums/Bass/Synth-CC). Band notes
+    enter at the "now" line and scroll into the past over a fixed time window; note blocks sized by
+    sustain, colored per role.
+  - *Guidance:* Pure time→x mapping (testable); PixiJS render decoupled from React via the existing
+    `RenderLoop`; bounded history (drop notes older than the window). Reconcile lane colors with the
+    Lane B catalog later in Task 9.
+  - *Tests:* Pure mapping (event time + now → x/width, lane → y, prune expired) with boundary cases.
+  - *Result:* `src/visualizer/ribbon.ts` (`timeToX`, `isExpired`/`pruneExpired`, `buildRibbonBlocks`,
+    `laneRect`, `ROLE_COLORS`/`ROLE_LABELS`, 6 s window) + `src/visualizer/BandRibbon.tsx` (PixiJS
+    surface reading `bandEvents` each RAF, "now" line, lane backgrounds). 8 unit tests.
+
+- [x] **Task 14: Performance flow score from telemetry.** ✅ *Done.*
+  - *Lane:* E. *Depends on:* Task 3.
+  - *Objective:* Compute a 0..1 **flow** score from a short rolling window of telemetry: energy
+    (`rms`/onset density), pitch stability, and tempo steadiness. Expose `useFlow()` and derive a
+    discrete `PerformanceMood` (`idle | warming | playing | hyped | slump`).
+  - *Guidance:* Pure, deterministic reducers over a frame window (unit-testable); smooth to avoid
+    jitter. No rendering here.
+  - *Tests:* Reducer boundary cases — silence → idle/slump, steady energetic play → hyped, erratic
+    → lower flow; score stays in [0,1].
+  - *Result:* `src/visualizer/flow.ts` (`energyScore`, `pitchStabilityScore`, `tempoSteadinessScore`,
+    `moodFromFlow`, `computeFlow` over a 30-frame window) + `src/visualizer/useFlow.ts` (rolling
+    window + exponential smoothing, writes `flow`/`mood` to the store). 6 unit tests.
+
+- [x] **Task 15: Pixel-art Adrian Barar + flow-driven effects.** ✅ *Done.*
+  - *Lane:* E. *Depends on:* Tasks 13, 14.
+  - *Objective:* Center stage: an animated pixel-art Adrian sprite whose animation state follows
+    `PerformanceMood`, with effects (glow, particles, onset pulses/shake) scaled by flow. Placeholder
+    art behind a clean asset slot.
+  - *Guidance:* Sprite-sheet manifest (frames per mood) so real art drops in later; drive animation
+    from `useFlow()` + onset; respect reduced-motion. Decouple animation from React re-renders.
+  - *Tests:* Pure mood→animation-descriptor and flow→effect-params mappings; asset-manifest
+    integrity; mount/unmount cleanup.
+  - *Result:* `src/visualizer/adrian.ts` (`ADRIAN_ANIMATIONS` manifest, `animationForMood`,
+    `effectsForFlow`, `isManifestValid`, `MOOD_COLORS`) + `src/visualizer/AdrianStage.tsx` (PixiJS
+    placeholder procedural pixel sprite; mood-driven bob/speed, flow-driven glow, onset pulse;
+    respects `prefers-reduced-motion`; real sprite-sheet art drops into `drawAdrian`/manifest later).
+    6 unit tests. Wired into `VisualizerView` (Adrian center, ribbon bottom, flow readout, Enable
+    Audio + Connect Band MIDI buttons).
+
+
+### Track E restyle — Guitar Hero look & HUD ✅ *Done.*
+
+Per a design requirement, the Visualizer was restyled to look like a rock game, then the note area
+was reworked into a **horizontal 6-string guitar fretboard**. Final decisions: notes placed on six
+horizontal strings (standard tuning E-A-D-G-B-E) by nearest pitch, scrolling right→left as a
+rolling live history; the vertical highway and the 5-fret strip were removed; full HUD — Rock Meter
++ score/combo/multiplier + flames; **self-hosted** metal font + procedural gems for offline safety.
+
+What landed (no engine change; all additive):
+- **Horizontal 6-string fretboard** — `src/visualizer/fretboardGeometry.ts` (pure geometry:
+  `midiToString` nearest-string mapping, `ageToX` right→left scroll, `stringY`, `isExpired`,
+  `buildFretboardGems`) + `Fretboard.tsx` (PixiJS board — six strings of increasing thickness, fret
+  wires, a "now"/nut line at the right, tuning labels; band notes placed on their nearest string by
+  MIDI pitch, scrolling left as they age — rolling live history, no look-ahead). Replaces the
+  earlier vertical faux-3D highway (`highway.ts`/`GuitarHeroHighway.tsx`) and the horizontal ribbon
+  before it, all removed.
+- **HUD** — `src/visualizer/scoring.ts` (score/combo/`multiplierForCombo` x1→x4 from onset streaks;
+  `rockZone`/`showFlames` from flow) + `useScore.ts` + `GuitarHeroHud.tsx` (`RockMeter`,
+  `ScoreBoard`). Combo breaks on sustained silence. (The 5-fret pitch strip `frets.ts`/`FretStrip`
+  was removed — redundant now that notes render per-string on the fretboard.)
+- **Fonts** — self-hosted **Metal Mania** + **Russo One** (both SIL OFL 1.1) under
+  `src/assets/fonts/` with `LICENSE.txt`; bundled into `dist/` (offline-safe), replacing the prior
+  Google Fonts `@import`.
+- **Theme** — **black & white** heavy-metal look (Cargo-inspired mood). `index.css` uses a pure
+  grayscale palette with shades for hierarchy/visibility — black stage base, white primary text,
+  mid/faint grays for secondary text — a soft white light shaft from below, an inline-SVG **grunge
+  noise** texture, drifting **white sparks**, and a heavy vignette (no color anywhere). All Pixi
+  elements (fretboard strings/gems, waveform, rock-meter zones) are grayscale shades, distinguished
+  by brightness, **except the Adrian pixel-art sprite which stays colored**. **Metal Mania** is
+  applied to all text; the header title is white. Text uses carved shadows (no glow).
+  `prefers-reduced-motion` respected.
+- Tests: pure-logic coverage for the fretboard geometry (`fretboardGeometry.test.ts`, 9 tests),
+  scoring (6), plus the rest. Full suite **96 green**; `typecheck` + `build` green.
 
 ---
 

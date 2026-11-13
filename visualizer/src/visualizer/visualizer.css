@@ -1,0 +1,275 @@
+.view--visualizer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  height: 100%;
+}
+
+/* --- HUD status bar --- */
+.visualizer__statusbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel);
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+.visualizer__statusbar > span {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.visualizer__enable-audio {
+  padding: 0.42rem 1rem;
+  border: none;
+  border-radius: 999px;
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #0a0a0a;
+  background: linear-gradient(135deg, var(--g-white), var(--g-400));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+
+.visualizer__enable-audio:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3);
+}
+
+/* --- Scoreboard (top-right of HUD) --- */
+.gh-score {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-family: var(--font-heading);
+}
+
+.gh-score__mult {
+  font-size: 1.4rem;
+  color: var(--fire-core);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.gh-score__points {
+  font-size: 1.5rem;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+}
+
+.gh-score__combo {
+  font-size: 0.75rem;
+  color: var(--fire-mid);
+  letter-spacing: 0.08em;
+}
+
+/* --- Stage row: rock meter | Adrian | note panel --- */
+.gh-stage {
+  flex: 1;
+  min-height: 300px;
+  display: grid;
+  grid-template-columns: 96px 1fr 160px;
+  gap: 1rem;
+}
+
+.gh-stage__center {
+  position: relative;
+}
+
+.neon-panel,
+.adrian-stage,
+.waveform-canvas,
+.fretboard,
+.note-panel {
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 0 24px rgba(0, 0, 0, 0.5);
+}
+
+.adrian-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.12), transparent 55%),
+    radial-gradient(circle at 50% 90%, rgba(255, 255, 255, 0.06), transparent 62%),
+    linear-gradient(180deg, var(--bg-2), var(--bg-0));
+}
+
+.adrian-stage::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  width: 62%;
+  height: 120%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.12), transparent 60%);
+  pointer-events: none;
+}
+
+/* --- Rock Meter (vertical gauge) --- */
+.gh-rockmeter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.3rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+}
+
+.gh-rockmeter__label {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.gh-rockmeter__track {
+  position: relative;
+  flex: 1;
+  width: 34px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.gh-rockmeter__fill {
+  width: 100%;
+  border-radius: 999px 999px 0 0;
+  transition: height 160ms ease-out, background 200ms ease;
+}
+
+.gh-rockmeter__flames {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  animation: flame-flicker 0.4s infinite alternate;
+}
+
+@keyframes flame-flicker {
+  from { transform: translateX(-50%) scale(1); opacity: 0.85; }
+  to { transform: translateX(-50%) scale(1.2); opacity: 1; }
+}
+
+.gh-rockmeter__tag {
+  font-family: var(--font-heading);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+/* --- Waveform --- */
+.waveform-canvas {
+  position: relative;
+  width: 100%;
+  height: 90px;
+  min-height: 80px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), var(--bg-0));
+}
+
+/* --- Horizontal 6-string fretboard --- */
+.fretboard {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  min-height: 160px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), var(--bg-0) 70%);
+}
+
+/* --- Note & pitch panel --- */
+.note-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  background: linear-gradient(180deg, var(--bg-2), var(--bg-0));
+  transition: box-shadow 80ms ease-out;
+}
+
+.note-panel--onset {
+  box-shadow:
+    0 0 0 2px var(--fire-core) inset,
+    0 0 30px rgba(255, 255, 255, 0.55) !important;
+}
+
+.note-panel__readout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.note-panel__note {
+  font-family: var(--font-display);
+  font-size: 2.6rem;
+  color: #ffffff;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.6),
+    0 2px 2px rgba(0, 0, 0, 0.7);
+}
+
+.note-panel__key {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.note-panel__track {
+  position: relative;
+  flex: 1;
+  min-height: 200px;
+  border-radius: 10px;
+  background:
+    linear-gradient(to top, rgba(0, 0, 0, 0.4), transparent),
+    var(--bg-1);
+  overflow: hidden;
+}
+
+.note-panel__trail-dot {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.note-panel__marker {
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  border-radius: 50%;
+}

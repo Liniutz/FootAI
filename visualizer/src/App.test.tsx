@@ -34,7 +34,7 @@ describe("App shell (routing)", () => {
     expect(open).toHaveBeenCalledTimes(2);
     expect(open.mock.calls[0]?.[1]).toBe("cyberjam-menu");
     expect(open.mock.calls[1]?.[1]).toBe("cyberjam-visualizer");
-    expect(screen.getByText(/Opened the Menu and Visualizer/)).toBeInTheDocument();
+    expect(screen.getByText(/Menu and Visualizer launched/)).toBeInTheDocument();
   });
 
   it("falls back to a manual button when popups are blocked", async () => {
@@ -43,16 +43,16 @@ describe("App shell (routing)", () => {
 
     render(<App />);
 
-    const button = screen.getByRole("button", { name: /Open both screens/ });
+    const button = screen.getByRole("button", { name: /Start the Show/ });
     expect(button).toBeInTheDocument();
-    expect(screen.getByText(/blocked the automatic split/)).toBeInTheDocument();
+    expect(screen.getByText(/held back the second screen/)).toBeInTheDocument();
 
     // Clicking retries the open (user gesture).
     open.mockReturnValue(FAKE_WINDOW);
     await act(async () => {
       button.click();
     });
-    expect(screen.getByText(/Opened the Menu and Visualizer/)).toBeInTheDocument();
+    expect(screen.getByText(/Menu and Visualizer launched/)).toBeInTheDocument();
   });
 
   it("does not render the removed header nav links", () => {

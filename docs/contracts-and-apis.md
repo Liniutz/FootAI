@@ -65,3 +65,21 @@ Created via `mido` + `python-rtmidi` (`virtual=True`).
 | **Channel 1** | `WekinatorOSCServer` | MIDI CC modulation (`74`, `71`, `1`, `11`, etc.) |
 | **Channel 2** | `MLSequencer` / `MagentaAgent` | Generated Bassline / Melody notes |
 | **Channel 10** | `MLSequencer` / `MagentaAgent` | General MIDI Drums (Kick `36`, Snare `38`, Closed Hat `42`) |
+
+### Visual consumer: React Visualizer (Web MIDI, read-only)
+
+The React visualizer reads `CyberJam_Band` **as an input** via the browser **Web MIDI API**
+(`navigator.requestMIDIAccess`) to render the ML band's live notes as a scrolling 3-lane ribbon.
+It never sends MIDI. Channel→role mapping (0-based wire channel in parentheses):
+
+| Role (lane) | Wire channel | Source |
+| :--- | :--- | :--- |
+| Synth/FX (CC) | `0` (Ch 1) | Wekinator CC modulation |
+| Bass | `1` (Ch 2) | ML bassline note_on/note_off |
+| Drums | `9` (Ch 10) | ML drum note_on/note_off |
+
+A `note_on` with velocity `0` is treated as `note_off`. Requires a secure context
+(`http://localhost` qualifies), user permission, and that the browser runs on the machine hosting
+the `CyberJam_Band` port. The visualizer degrades gracefully (`unsupported` / `denied` /
+`port-missing`) when any of these is absent. See
+[`visualizer-react.md`](./visualizer-react.md) Extension track E.
