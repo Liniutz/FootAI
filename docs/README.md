@@ -11,6 +11,7 @@ Welcome to the central documentation directory for **CyberJam** (`FootAI`). Ever
 | [audio-and-routing.md](./audio-and-routing.md) | `sounddevice` ingress, DSP backends (`aubio` / `librosa` / `crepe`), UDP `:13000`, `pw-loopback`, and `qpwgraph` cable map |
 | [contracts-and-apis.md](./contracts-and-apis.md) | Visuals WebSocket (`:8080`) JSON schema, Wekinator OSC (`:12000`) addresses, and `CyberJam_Band` MIDI channels |
 | [ml-integration.md](./ml-integration.md) | ML stub contract (`ml_brain.py`) and `MagentaAgent` (`magenta_agent.py`) TensorFlow/MIDI integration |
+| [visualizer-react.md](./visualizer-react.md) | Full-React visualizer subsystem: Menu + Visualizer features, spec-driven task plan, and how it consumes the WebSocket (`:8080`) and PipeWire Virtual Source audio contracts |
 
 ---
 
