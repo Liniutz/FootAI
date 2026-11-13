@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberJam — Live Guitar Monitor</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #131822;
+      --border: #232b3a;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #38bdf8;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --pink: #f472b6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+    h1 { font-size: 1.25rem; font-weight: 600; letter-spacing: 0.03em; }
+    .badges { display: flex; gap: 10px; align-items: center; }
+    .badge {
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .badge.connected { color: var(--green); border-color: #10b98155; }
+    .badge.playing { color: #0b0e14; background: var(--green); border-color: var(--green); }
+    .badge.onset { color: #0b0e14; background: var(--amber); border-color: var(--amber); }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .note-hero {
+      display: flex;
+      align-items: baseline;
+      gap: 18px;
+    }
+    .note-name {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--accent);
+      min-width: 140px;
+    }
+    .note-name.idle { color: var(--muted); }
+    .note-meta { display: flex; flex-direction: column; gap: 6px; color: var(--muted); font-size: 0.95rem; }
+    .note-meta strong { color: var(--text); }
+
+    .metrics { display: flex; flex-direction: column; gap: 14px; justify-content: center; }
+    .metric-row { display: flex; flex-direction: column; gap: 6px; }
+    .metric-label { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); }
+    .metric-label strong { color: var(--text); font-variant-numeric: tabular-nums; }
+    .bar-bg { height: 10px; background: #1d2432; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width 40ms linear; }
+    .bar-fill.rms { background: linear-gradient(90deg, var(--green), var(--amber), var(--pink)); }
+
+    .chromatic {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 8px;
+    }
+    .key-pill {
+      text-align: center;
+      padding: 14px 0;
+      border-radius: 8px;
+      background: #171d29;
+      border: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--muted);
+      transition: all 60ms ease;
+    }
+    .key-pill.active {
+      background: var(--accent);
+      color: #0b0e14;
+      border-color: var(--accent);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px #38bdf844;
+    }
+
+    canvas {
+      width: 100%;
+      height: 220px;
+      display: block;
+      background: #0e131b;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .canvas-title { font-size: 0.82rem; color: var(--muted); margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>CyberJam — Live Guitar Telemetry</h1>
+    <div class="badges">
+      <span id="onsetBadge" class="badge">ONSET</span>
+      <span id="playBadge" class="badge">IDLE</span>
+      <span id="connBadge" class="badge">DISCONNECTED</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <div class="note-hero">
+        <div id="noteName" class="note-name idle">N/A</div>
+        <div class="note-meta">
+          <div>Frequency: <strong id="freqHz">0.0 Hz</strong></div>
+          <div>MIDI Note: <strong id="midiNum">0</strong></div>
+          <div>Key Class: <strong id="keyClass">N/A</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card metrics">
+      <div class="metric-row">
+        <div class="metric-label"><span>Tempo (BPM)</span><strong id="bpmVal">0.0</strong></div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label"><span>RMS Level</span><strong id="rmsVal">0.0000</strong></div>
+        <div class="bar-bg"><div id="rmsBar" class="bar-fill rms"></div></div>
+      </div>
+      <div class="metric-row">
+        <div class="metric-label"><span>Spectral Centroid</span><strong id="centVal">0.0 Hz</strong></div>
+        <div class="bar-bg"><div id="centBar" class="bar-fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="canvas-title">Chromatic Pitch Class</div>
+    <div id="chromatic" class="chromatic"></div>
+  </div>
+
+  <div class="card">
+    <div class="canvas-title">Live Pitch (MIDI 36–84) &amp; RMS Envelope</div>
+    <canvas id="historyCanvas" width="960" height="220"></canvas>
+  </div>
+
+  <script>
+    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const chromaticEl = document.getElementById("chromatic");
+    const pills = {};
+    NOTES.forEach((n) => {
+      const div = document.createElement("div");
+      div.className = "key-pill";
+      div.textContent = n;
+      chromaticEl.appendChild(div);
+      pills[n] = div;
+    });
+
+    const connBadge = document.getElementById("connBadge");
+    const playBadge = document.getElementById("playBadge");
+    const onsetBadge = document.getElementById("onsetBadge");
+    const noteNameEl = document.getElementById("noteName");
+    const freqHzEl = document.getElementById("freqHz");
+    const midiNumEl = document.getElementById("midiNum");
+    const keyClassEl = document.getElementById("keyClass");
+    const bpmValEl = document.getElementById("bpmVal");
+    const rmsValEl = document.getElementById("rmsVal");
+    const rmsBarEl = document.getElementById("rmsBar");
+    const centValEl = document.getElementById("centVal");
+    const centBarEl = document.getElementById("centBar");
+
+    const canvas = document.getElementById("historyCanvas");
+    const ctx = canvas.getContext("2d");
+    const MAX_POINTS = 150; // ~7.5s at 20 Hz
+    const history = [];
+    let onsetTimeout = null;
+
+    function drawHistory() {
+      const w = canvas.width;
+      const h = canvas.height;
+      ctx.clearRect(0, 0, w, h);
+
+      // Subtle grid lines
+      ctx.strokeStyle = "#1b2230";
+      ctx.lineWidth = 1;
+      for (let i = 1; i < 4; i++) {
+        const y = (h / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      if (history.length < 2) return;
+
+      // RMS envelope fill
+      ctx.fillStyle = "rgba(52, 211, 153, 0.16)";
+      ctx.beginPath();
+      ctx.moveTo(0, h);
+      history.forEach((pt, idx) => {
+        const x = (idx / (MAX_POINTS - 1)) * w;
+        const y = h - Math.min(1, pt.rms * 3.0) * (h * 0.85);
+        ctx.lineTo(x, y);
+      });
+      ctx.lineTo(((history.length - 1) / (MAX_POINTS - 1)) * w, h);
+      ctx.closePath();
+      ctx.fill();
+
+      // Pitch trace (MIDI 36..84)
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      let penDown = false;
+      history.forEach((pt, idx) => {
+        const x = (idx / (MAX_POINTS - 1)) * w;
+        if (pt.playing && pt.midi >= 36 && pt.midi <= 84) {
+          const norm = (pt.midi - 36) / (84 - 36);
+          const y = h - 16 - norm * (h - 32);
+          if (!penDown) {
+            ctx.moveTo(x, y);
+            penDown = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        } else {
+          penDown = false;
+        }
+      });
+      ctx.stroke();
+    }
+
+    function connect() {
+      const ws = new WebSocket("ws://127.0.0.1:8080");
+      ws.onopen = () => {
+        connBadge.textContent = "CONNECTED";
+        connBadge.classList.add("connected");
+      };
+      ws.onclose = () => {
+        connBadge.textContent = "RECONNECTING...";
+        connBadge.classList.remove("connected");
+        setTimeout(connect, 1000);
+      };
+      ws.onmessage = (event) => {
+        const d = JSON.parse(event.data);
+        const p = d.detected_pitch;
+
+        playBadge.textContent = d.is_playing ? "PLAYING" : "IDLE";
+        playBadge.classList.toggle("playing", Boolean(d.is_playing));
+
+        if (d.onset) {
+          onsetBadge.classList.add("onset");
+          clearTimeout(onsetTimeout);
+          onsetTimeout = setTimeout(() => onsetBadge.classList.remove("onset"), 140);
+        }
+
+        noteNameEl.textContent = p.note;
+        noteNameEl.classList.toggle("idle", !d.is_playing || p.note === "N/A");
+        freqHzEl.textContent = `${p.hz.toFixed(1)} Hz`;
+        midiNumEl.textContent = p.midi;
+        keyClassEl.textContent = p.key;
+
+        bpmValEl.textContent = d.bpm.toFixed(1);
+        rmsValEl.textContent = d.rms.toFixed(4);
+        rmsBarEl.style.width = `${Math.min(100, d.rms * 250)}%`;
+        centValEl.textContent = `${d.spectral_centroid_hz.toFixed(1)} Hz`;
+        centBarEl.style.width = `${Math.min(100, (d.spectral_centroid_hz / 5000) * 100)}%`;
+
+        NOTES.forEach((n) => {
+          pills[n].classList.toggle("active", d.is_playing && p.key === n);
+        });
+
+        history.push({ rms: d.rms, midi: p.midi, playing: d.is_playing });
+        if (history.length > MAX_POINTS) history.shift();
+        drawHistory();
+      };
+    }
+
+    connect();
+  </script>
+</body>
+</html>
