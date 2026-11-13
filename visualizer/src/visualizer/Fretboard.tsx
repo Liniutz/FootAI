@@ -10,6 +10,7 @@ import { useEffect, useRef } from "react";
 import { Application, Graphics, Text, TextStyle } from "pixi.js";
 import { useVisualizerStore } from "../store";
 import { RenderLoop } from "./renderLoop";
+import { filterEventsBySelection } from "./selectionView";
 import {
   BOARD_EDGE,
   BOARD_WOOD,
@@ -45,7 +46,8 @@ export function Fretboard() {
       };
       if (size.width <= 0 || size.height <= 0) return;
       const now = performance.now();
-      const events = useVisualizerStore.getState().bandEvents;
+      const state = useVisualizerStore.getState();
+      const events = filterEventsBySelection(state.bandEvents, state.selection);
       const labelX = size.width * LABEL_MARGIN_FRAC;
 
       g.clear();

@@ -359,7 +359,7 @@ lanes with the same dependency can run simultaneously.
 
 ### Integration track (serial; after both lanes merge)
 
-- [ ] **Task 9: Apply Menu selection to the Visualizer + reference overlays.**
+- [x] **Task 9: Apply Menu selection to the Visualizer + reference overlays.** ✅ *Done (Integration).*
   - *Lane:* Integration. *Depends on:* Lane B (Task 5) **and** Lane C (Tasks 7, 8). *Parallel with:*
     none — this is the first merge point.
   - *Objective:* Use the store's `selection` to drive Visualizer appearance: show only the chosen
@@ -372,10 +372,22 @@ lanes with the same dependency can run simultaneously.
     reference values; changing selection updates the view.
   - *Demo:* Cargo song + chosen instruments now shape the live Visualizer (lanes, colors, tempo/key
     reference), with note + waveform visuals running together.
+  - *Result:* Pure mapping layer in `src/visualizer/selectionView.ts` — `instrumentIdToRole`
+    (drums→drums Ch10, bass→bass Ch2, synth-fx→cc Ch1), `activeLanes`/`activeRoles` (selected
+    instruments in catalog lane order, or **all** lanes when nothing is selected),
+    `filterEventsBySelection` (keeps only band events for active roles), `selectedSong`, and
+    `compareBpm`/`compareKey` (match/off vs reference, null until live data arrives). `SessionOverlay`
+    (`src/visualizer/SessionOverlay.tsx`, wired into `VisualizerView` above the stage) renders the
+    song title + reference BPM/key vs live values (color-coded match) and a lane legend with each
+    instrument's `displayColor` and MIDI channel label; with no selection it shows "Free Session" and
+    all lanes. `Fretboard` now filters its band gems through `filterEventsBySelection`, so deselected
+    instruments disappear from the board. Verified: `npm run typecheck`, `npm test` (148 passing,
+    incl. 15 `selectionView` + 4 `SessionOverlay` tests), and `npm run build` all green on branch
+    `feat/visualizer-next`.
 
 ### Track D — Polish & integration hardening
 
-- [ ] **Task 10: Connection/status UX, resilience, and end-to-end wiring.**
+- [x] **Task 10: Connection/status UX, resilience, and end-to-end wiring.** ✅ *Done (Integration).*
   - *Lane:* Integration. *Depends on:* Task 9. *Parallel with:* none.
   - *Objective:* Add a persistent status bar (WebSocket + audio status, reconnect indicator),
     graceful empty/error states when the engine isn't running, and finalize wiring so both views
@@ -387,6 +399,19 @@ lanes with the same dependency can run simultaneously.
     recovery on reconnect. Full smoke test of the data flow with mocked WebSocket + audio.
   - *Demo:* Start with the engine off → clear offline guidance; start the engine → everything connects
     live; switch tabs repeatedly with no errors/leaks.
+  - *Result:* Pure message layer in `src/components/statusMessages.ts` maps each status union to a
+    `{ label, tone, hint }` view (telemetry/audio/MIDI) with the exact contract references — "Engine
+    offline — start the engine (run_session.py)", the `--pipewire-loopback` device hint, and the
+    `CyberJam_Band` port hint — plus `primaryHint`, which surfaces the single most actionable problem
+    (engine → audio → MIDI priority). New `src/components/StatusBar.tsx` renders color-coded pills, a
+    pulsing reconnect indicator while `connectionStatus === "connecting"`, a single guidance line when
+    action is needed, and accepts the Enable Audio / Connect Band MIDI / scoreboard actions as
+    children. `VisualizerView` now uses `StatusBar` in place of its ad-hoc status spans. The temporary
+    `DebugPanel` was removed from `App.tsx` and deleted. No-leak teardown verified: telemetry, audio,
+    and band-MIDI hooks all `stop()` on unmount, and the Pixi RenderLoops stop in their effect
+    cleanups. Verified: `npm run typecheck`, `npm test` (165 passing, incl. 12 `statusMessages` + 5
+    `StatusBar` tests covering offline/denied guidance, reconnect indicator, and recovery), and `npm
+    run build` all green on branch `feat/visualizer-next`.
 
 ### Documentation task (repo rule compliance)
 

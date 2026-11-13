@@ -17,39 +17,9 @@ import { NotePitchPanel } from "../visualizer/NotePitchPanel";
 import { AdrianStage } from "../visualizer/AdrianStage";
 import { Fretboard } from "../visualizer/Fretboard";
 import { RockMeter, ScoreBoard } from "../visualizer/GuitarHeroHud";
+import { SessionOverlay } from "../visualizer/SessionOverlay";
+import { StatusBar } from "../components/StatusBar";
 import "../visualizer/visualizer.css";
-
-function audioMessage(status: string): string {
-  switch (status) {
-    case "active":
-      return "Audio on";
-    case "requesting":
-      return "Audio…";
-    case "denied":
-      return "Audio denied";
-    case "device-missing":
-      return "No visual-audio device (--pipewire-loopback)";
-    default:
-      return "Audio off";
-  }
-}
-
-function midiMessage(status: string): string {
-  switch (status) {
-    case "active":
-      return "Band MIDI on";
-    case "requesting":
-      return "MIDI…";
-    case "denied":
-      return "MIDI denied";
-    case "port-missing":
-      return "No CyberJam_Band port";
-    case "unsupported":
-      return "No Web MIDI";
-    default:
-      return "Band MIDI off";
-  }
-}
 
 export function VisualizerView() {
   useTelemetry();
@@ -60,14 +30,10 @@ export function VisualizerView() {
 
   const audioStatus = useVisualizerStore((s) => s.audioStatus);
   const midiStatus = useVisualizerStore((s) => s.midiStatus);
-  const connectionStatus = useVisualizerStore((s) => s.connectionStatus);
 
   return (
     <section aria-label="Visualizer" className="view view--visualizer gh">
-      <div className="visualizer__statusbar">
-        <span data-testid="viz-connection">telemetry: {connectionStatus}</span>
-        <span data-testid="viz-audio">{audioMessage(audioStatus)}</span>
-        <span data-testid="viz-midi">{midiMessage(midiStatus)}</span>
+      <StatusBar>
         {audioStatus !== "active" && (
           <button
             type="button"
@@ -87,7 +53,9 @@ export function VisualizerView() {
           </button>
         )}
         <ScoreBoard />
-      </div>
+      </StatusBar>
+
+      <SessionOverlay />
 
       <div className="gh-stage">
         <RockMeter />

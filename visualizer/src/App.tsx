@@ -15,7 +15,6 @@ import { useSelectionSync } from "./sync";
 import { openBothScreens, type OpenWindowsResult } from "./windows";
 import { MenuView } from "./views/MenuView";
 import { VisualizerView } from "./views/VisualizerView";
-import { DebugPanel } from "./components/DebugPanel";
 import "./App.css";
 
 function Launcher() {
@@ -79,8 +78,6 @@ export function App() {
         {route === "visualizer" && <VisualizerView />}
         {route === "home" && <Launcher />}
       </main>
-
-      <DebugPanel />
     </div>
   );
 }
