@@ -91,15 +91,15 @@ describe("MenuView", () => {
   it("disables Start until a song is chosen, then navigates to the Visualizer", () => {
     render(<MenuView />);
 
-    const start = screen.getByRole("button", {
-      name: /Start \/ Go to Visualizer/,
-    });
+    const start = screen.getByRole("button", { name: /Select a song to start/ });
     expect(start).toBeDisabled();
 
     act(() => screen.getByRole("radio", { name: /Cargo/ }).click());
-    expect(start).toBeEnabled();
 
-    act(() => start.click());
+    const ready = screen.getByRole("button", { name: /Start Session/ });
+    expect(ready).toBeEnabled();
+
+    act(() => ready.click());
     expect(window.location.hash).toBe("#/visualizer");
   });
 });

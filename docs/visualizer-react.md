@@ -268,6 +268,18 @@ lanes with the same dependency can run simultaneously.
     the hash to `#/visualizer`. Verified: `npm run typecheck`, `npm test` (49 passing, incl. 7
     persistence + 5 Menu RTL tests), and `npm run build` all green on branch
     `feat/react-visualizer-menu-catalog`.
+  - *Enhancement (controller support + Rocksmith-style UI):* The Menu was redesigned with a
+    friendlier, game-like aesthetic (dark gradient hero, large song/instrument "cards" with a glowing
+    cyan focus ring, per-instrument accent colors from the catalog `displayColor`, and a prominent
+    "Start Session" call-to-action). Full **gamepad** navigation was added via a polling hook
+    (`src/menu/useGamepad.ts`): a `requestAnimationFrame` loop reads `navigator.getGamepads()` and
+    emits *edge-triggered* semantic actions (D-pad/left-stick → up/down/left/right, A → confirm,
+    B → back, Start → launch) for a standard-mapping controller. The view keeps a single focus cursor
+    across songs → instruments → Start; D-pad moves it, A activates the focused item, and a live hint
+    shows when a controller connects. Mouse and keyboard still work (hover syncs focus; radio/toggle
+    semantics preserved via `role="radio"`/`aria-pressed`). Tests: pure `readActions`/`stepActions`
+    units cover button/axis mapping and rising-edge detection (6 new). Re-verified: `npm run
+    typecheck`, `npm test` (55 passing), and `npm run build` all green.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 
