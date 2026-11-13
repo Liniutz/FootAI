@@ -118,6 +118,7 @@ class AudioDSPEngine:
         hop = config.block_size
         win = hop * 4  # 2048 samples (~42.6ms at 48kHz)
         self._use_aubio = aubio is not None
+        self._pitch_history: deque[float] = deque(maxlen=5)
         if self._use_aubio:
             self._onset = aubio.onset("default", win, hop, config.sample_rate)
             self._onset.set_threshold(config.onset_threshold)
@@ -303,11 +304,13 @@ class AudioDSPEngine:
                     flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
                     is_onset = flux_onset
 
-                # Pitch & key estimation
+                # Pitch & key estimation with median smoothing to prevent octave/jitter jumps
                 detected_hz = self._estimate_pitch(samples, frame_counter)
                 if 70.0 <= detected_hz <= 1400.0:
-                    pitch_hz = detected_hz
-                    midi_note, note_str, key_str = hz_to_note_info(detected_hz)
+                    self._pitch_history.append(detected_hz)
+                    smoothed_hz = float(np.median(self._pitch_history))
+                    pitch_hz = smoothed_hz
+                    midi_note, note_str, key_str = hz_to_note_info(smoothed_hz)
             else:
                 self._prev_log_mag = None
                 silent_for = now - self._last_active_wall

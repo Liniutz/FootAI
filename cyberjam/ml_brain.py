@@ -7,6 +7,7 @@ actual model inference when the trained checkpoints are ready.
 
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 import logging
 import threading
@@ -110,6 +111,8 @@ class MLSequencer:
         self.midi = midi
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
+        self._last_valid_key = config.default_key
+        self._key_history: deque[str] = deque(maxlen=4)
 
     def start(self) -> None:
         """Launch the asynchronous ML MIDI sequencer thread."""
@@ -176,7 +179,19 @@ class MLSequencer:
         bpm = raw_bpm if raw_bpm > 0.0 else self.config.default_bpm
         pitch_info = snap["detected_pitch"]  # type: ignore[assignment]
         raw_key = str(pitch_info["key"])  # type: ignore[index]
-        key = raw_key if raw_key != "N/A" else self.config.default_key
+        rms = float(snap["rms"])  # type: ignore[arg-type]
+
+        # Robust hysteresis & energy gating: only update key when signal is active
+        if rms > 0.015 and raw_key != "N/A":
+            self._key_history.append(raw_key)
+            from collections import Counter
+            counts = Counter(self._key_history)
+            dominant_key, count = counts.most_common(1)[0]
+            # Require strong consensus (at least 3 out of 4 recent frames) before switching
+            if count >= 3:
+                self._last_valid_key = dominant_key
+
+        key = self._last_valid_key
 
         # Refresh bar patterns at the start of every 4/4 bar
         if step == 0:
