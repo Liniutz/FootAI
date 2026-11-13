@@ -293,7 +293,7 @@ async def _run_smoke_test() -> None:
     agent = MagentaAgent()
 
     mido.set_backend("mido.backends.rtmidi")
-    midi_out = mido.open_output("CyberneticAI_Band_MagentaTest", virtual=True)
+    midi_out = mido.open_output("CyberJam_Band_MagentaTest", virtual=True)
     try:
         if not _MAGENTA_AVAILABLE:
             logger.info("Skipping primer generation test because Magenta is not installed.")
