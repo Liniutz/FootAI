@@ -1,12 +1,12 @@
 # ML Integration Guide
 
 Two ML layers exist in the repository:
-1. **Real-Time Stubs & Sequencer (`cybernetic_session/ml_brain.py`)** — Zero-dependency mock patterns for immediate DAW routing & latency testing.
+1. **Real-Time Stubs & Sequencer (`cyberjam/ml_brain.py`)** — Zero-dependency mock patterns for immediate DAW routing & latency testing.
 2. **Magenta TensorFlow Agent (`magenta_agent.py`)** — Symbolic MIDI generator using pre-trained `.mag` bundles.
 
 ---
 
-## 1. Real-Time Stubs (`cybernetic_session/ml_brain.py`)
+## 1. Real-Time Stubs (`cyberjam/ml_brain.py`)
 
 `MLSequencer` runs a drift-compensated 16th-note step loop in a dedicated background thread and calls:
 * `generate_drum_midi(bpm: float) -> list[MidiStepEvent]`

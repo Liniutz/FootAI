@@ -1,22 +1,22 @@
 # AGENTS.md — Repository Rules & Engineering Guide
 
-This file defines the mandatory workflow, architectural invariants, testing standards, and documentation rules for AI agents and contributors working in **FootAI ("The Cybernetic Session")**.
+This file defines the mandatory workflow, architectural invariants, testing standards, and documentation rules for AI agents and contributors working in **FootAI ("CyberJam")**.
 
 ---
 
 ## 1. Project Context
 
-**The Cybernetic Session** is a monolithic, low-latency interactive museum installation running on **CachyOS (Arch Linux)** with **PipeWire** (`qpwgraph` for patchbay routing) and **Python 3.11+** (workstation uses Python 3.14.7 in `.venv/` and **Fish** shell).
+**CyberJam** is a monolithic, low-latency interactive museum installation running on **CachyOS (Arch Linux)** with **PipeWire** (`qpwgraph` for patchbay routing) and **Python 3.11+** (workstation uses Python 3.14.7 in `.venv/` and **Fish** shell).
 
 ### Subsystems & Boundaries
 | Subsystem | Location | Purpose |
 | :--- | :--- | :--- |
-| **Audio & DSP ("The Ears")** | `cybernetic_session/audio_dsp.py` | `sounddevice` capture, UDP `:13000` raw `float32` PCM stream, optional `pw-loopback`, onset/BPM/pitch/RMS/centroid extraction |
-| **ML Brain (Stubs & Magenta)** | `cybernetic_session/ml_brain.py`, `magenta_agent.py` | Symbolic MIDI generation (`generate_drum_midi`, `generate_bass_midi`, `MagentaAgent` `.mag` bundles) |
-| **MIDI Egress ("The Hands")** | `cybernetic_session/midi_egress.py` | Thread-safe virtual ALSA MIDI port `CyberneticAI_Band` (`mido` + `python-rtmidi`) |
-| **Wekinator OSC ("The Soul")** | `cybernetic_session/osc_wekinator.py` | AsyncIO OSC UDP server on `127.0.0.1:12000` mapping floats to MIDI CC on Ch 1 |
-| **Visual Telemetry ("The Face")** | `cybernetic_session/ws_telemetry.py` | AsyncIO WebSocket server on `ws://127.0.0.1:8080` broadcasting JSON at 20 Hz (`50 ms`) |
-| **Orchestrator & Config** | `cybernetic_session/main.py`, `cybernetic_session/config.py`, `run_session.py` | CLI flags, `SessionConfig`, lock-protected `MusicalState`, graceful `SIGINT`/`SIGTERM` shutdown |
+| **Audio & DSP ("The Ears")** | `cyberjam/audio_dsp.py` | `sounddevice` capture, UDP `:13000` raw `float32` PCM stream, optional `pw-loopback`, onset/BPM/pitch/RMS/centroid extraction |
+| **ML Brain (Stubs & Magenta)** | `cyberjam/ml_brain.py`, `magenta_agent.py` | Symbolic MIDI generation (`generate_drum_midi`, `generate_bass_midi`, `MagentaAgent` `.mag` bundles) |
+| **MIDI Egress ("The Hands")** | `cyberjam/midi_egress.py` | Thread-safe virtual ALSA MIDI port `CyberJam_Band` (`mido` + `python-rtmidi`) |
+| **Wekinator OSC ("The Soul")** | `cyberjam/osc_wekinator.py` | AsyncIO OSC UDP server on `127.0.0.1:12000` mapping floats to MIDI CC on Ch 1 |
+| **Visual Telemetry ("The Face")** | `cyberjam/ws_telemetry.py` | AsyncIO WebSocket server on `ws://127.0.0.1:8080` broadcasting JSON at 20 Hz (`50 ms`) |
+| **Orchestrator & Config** | `cyberjam/main.py`, `cyberjam/config.py`, `run_session.py` | CLI flags, `SessionConfig`, lock-protected `MusicalState`, graceful `SIGINT`/`SIGTERM` shutdown |
 
 Read [`docs/README.md`](./docs/README.md) and [`docs/architecture.md`](./docs/architecture.md) before modifying any subsystem.
 
@@ -38,7 +38,7 @@ Read [`docs/README.md`](./docs/README.md) and [`docs/architecture.md`](./docs/ar
 ## 3. Critical Architectural Invariants (Do Not Break)
 
 1. **Audio Callback Must Never Block:**
-   - `_audio_callback` in `cybernetic_session/audio_dsp.py` runs on a real-time audio thread. Never perform file I/O, heavy allocations, blocking locks, or ML inference inside it. Use bounded `queue.Queue.put_nowait` and non-blocking UDP sockets.
+   - `_audio_callback` in `cyberjam/audio_dsp.py` runs on a real-time audio thread. Never perform file I/O, heavy allocations, blocking locks, or ML inference inside it. Use bounded `queue.Queue.put_nowait` and non-blocking UDP sockets.
 2. **TensorFlow / ML Offloading:**
    - Model bundles (`.mag`) must be loaded **once** in `__init__` (never per-bar or per-request).
    - Model `.generate()` calls must run in a background thread (`MLSequencer` or `asyncio.to_thread`) so neither the audio callback nor the `asyncio` event loop blocks.
@@ -62,7 +62,7 @@ Every code change must be verified before committing:
 2. **Run Checks After Your Final Edit:**
    ```fish
    # Syntax check all Python files
-   .venv/bin/python -m py_compile run_session.py cybernetic_session/*.py
+   .venv/bin/python -m py_compile run_session.py cyberjam/*.py
 
    # Run test suite (if tests/ exists)
    .venv/bin/python -m unittest discover -s tests -v

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class MidiEgress:
     """Thread-safe virtual ALSA MIDI output port manager."""
 
-    def __init__(self, port_name: str = "CyberneticAI_Band") -> None:
+    def __init__(self, port_name: str = "CyberJam_Band") -> None:
         self.port_name = port_name
         self._lock = threading.Lock()
         self._port: mido.ports.BaseOutput | None = None

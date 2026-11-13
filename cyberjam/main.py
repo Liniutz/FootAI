@@ -1,4 +1,4 @@
-"""Main orchestrator for The Cybernetic Session."""
+"""Main orchestrator for CyberJam."""
 
 from __future__ import annotations
 
@@ -17,13 +17,13 @@ from .ml_brain import MLSequencer
 from .osc_wekinator import WekinatorOSCServer
 from .ws_telemetry import VisualTelemetryServer
 
-logger = logging.getLogger("cybernetic_session")
+logger = logging.getLogger("cyberjam")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="cybernetic-session",
-        description="The Cybernetic Session — Low-latency PipeWire/JACK audio, DSP, ML MIDI, OSC, and WebSocket router.",
+        prog="cyberjam",
+        description="CyberJam — Low-latency PipeWire/JACK audio, DSP, ML MIDI, OSC, and WebSocket router.",
     )
     parser.add_argument("--list-devices", action="store_true", help="List available audio devices and exit.")
     parser.add_argument("--device", default=None, help="Audio input device index or name substring.")
@@ -46,7 +46,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 async def run_async(config: SessionConfig) -> None:
-    """Initialize and run all Cybernetic Session subsystems until interrupted."""
+    """Initialize and run all CyberJam subsystems until interrupted."""
     state = MusicalState(bpm=config.default_bpm, detected_key=config.default_key)
     midi = MidiEgress(port_name=config.midi_port_name)
     audio_dsp = AudioDSPEngine(config=config, state=state)
@@ -69,10 +69,10 @@ async def run_async(config: SessionConfig) -> None:
         await osc_server.start()
         await ws_server.start()
 
-        logger.info("The Cybernetic Session is LIVE. Press Ctrl+C to stop.")
+        logger.info("CyberJam is LIVE. Press Ctrl+C to stop.")
         await stop_event.wait()
     finally:
-        logger.info("Shutting down The Cybernetic Session...")
+        logger.info("Shutting down CyberJam...")
         await ws_server.stop()
         osc_server.stop()
         ml_seq.stop()
