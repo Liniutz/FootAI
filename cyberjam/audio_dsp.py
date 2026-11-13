@@ -134,6 +134,9 @@ class AudioDSPEngine:
             self._tempo = None
             self._aubio_pitch = None
 
+        self._noise_gate_rms = 10.0 ** (config.silence_db / 20.0)
+        self._last_active_wall: float = 0.0
+
         self._prev_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
         self._onset_times: deque[float] = deque(maxlen=8)
@@ -243,33 +246,49 @@ class AudioDSPEngine:
                 continue
 
             rms = float(np.sqrt(np.mean(np.square(samples))))
+            now = time.monotonic()
+            above_gate = rms > self._noise_gate_rms
             mag = np.abs(np.fft.rfft(samples * self._hann)) if len(samples) == len(self._hann) else None
-            centroid = self._compute_spectral_centroid_from_mag(mag)
+            centroid = self._compute_spectral_centroid_from_mag(mag) if above_gate else 0.0
 
-            # Sub-50ms onset & tempo tracking
-            if self._use_aubio:
-                is_onset = bool(self._onset(samples))
-                is_beat = bool(self._tempo(samples))
-                bpm = float(self._tempo.get_bpm()) if is_beat else None
-            else:
-                is_onset, bpm = self._fallback_onset_and_bpm(mag, rms)
-
-            # Pitch & key estimation
             self._rolling_buf.extend(samples.tolist())
             pitch_hz: float | None = None
             note_str: str | None = None
             midi_note: int | None = None
             key_str: str | None = None
+            is_onset = False
+            bpm: float | None = None
 
-            if rms > 0.002:  # Noise gate (~ -54 dBFS)
+            if above_gate:
+                self._last_active_wall = now
+                is_playing = True
+
+                # Sub-50ms onset & tempo tracking (only while playing)
+                if self._use_aubio:
+                    is_onset = bool(self._onset(samples))
+                    is_beat = bool(self._tempo(samples))
+                    bpm = float(self._tempo.get_bpm()) if is_beat else None
+                else:
+                    is_onset, bpm = self._fallback_onset_and_bpm(mag, rms)
+
+                # Pitch & key estimation
                 detected_hz = self._estimate_pitch(samples, frame_counter)
                 if 70.0 <= detected_hz <= 1400.0:
                     pitch_hz = detected_hz
                     midi_note, note_str, key_str = hz_to_note_info(detected_hz)
             else:
-                pitch_hz = 0.0
+                # Reset pitch/playing state after silence hangover so UI doesn't freeze on stale notes
+                if (now - self._last_active_wall) >= self.config.silence_hold_sec:
+                    is_playing = False
+                    pitch_hz = 0.0
+                    note_str = "N/A"
+                    midi_note = 0
+                    key_str = "N/A"
+                else:
+                    is_playing = True
 
             self.state.update(
+                is_playing=is_playing,
                 bpm=bpm,
                 pitch_hz=pitch_hz,
                 note=note_str,

@@ -19,7 +19,8 @@ class SessionConfig:
     prefer_jack: bool = True
     pitch_backend: str = "aubio"  # "aubio" | "librosa" | "crepe"
     onset_threshold: float = 0.35
-    silence_db: float = -55.0
+    silence_db: float = -42.0
+    silence_hold_sec: float = 0.35
 
     # Live Audio Broadcast for Visuals
     udp_host: str = "127.0.0.1"
@@ -48,11 +49,12 @@ class SessionConfig:
 class MusicalState:
     """Thread-safe shared musical & DSP telemetry state."""
 
-    bpm: float = 120.0
+    is_playing: bool = False
+    bpm: float = 0.0
     detected_pitch_hz: float = 0.0
-    detected_note: str = "E2"
-    detected_midi_note: int = 40
-    detected_key: str = "E"
+    detected_note: str = "N/A"
+    detected_midi_note: int = 0
+    detected_key: str = "N/A"
     rms: float = 0.0
     spectral_centroid_hz: float = 0.0
     onset_detected: bool = False
@@ -62,6 +64,7 @@ class MusicalState:
     def update(
         self,
         *,
+        is_playing: bool | None = None,
         bpm: float | None = None,
         pitch_hz: float | None = None,
         note: str | None = None,
@@ -72,6 +75,8 @@ class MusicalState:
         onset: bool = False,
     ) -> None:
         with self._lock:
+            if is_playing is not None:
+                self.is_playing = is_playing
             if bpm is not None and 40.0 <= bpm <= 240.0:
                 self.bpm = round(bpm, 2)
             if pitch_hz is not None:
@@ -98,6 +103,7 @@ class MusicalState:
                 self.onset_detected = False
             return {
                 "timestamp": time.time(),
+                "is_playing": self.is_playing,
                 "bpm": self.bpm,
                 "detected_pitch": {
                     "hz": self.detected_pitch_hz,
