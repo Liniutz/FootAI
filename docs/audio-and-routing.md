@@ -5,7 +5,7 @@
 * **Sample Rate & Block Size:** `48000 Hz`, `512` frames (`~10.67 ms` per block), mono (`float32`).
 * **Onset & BPM Detection:**
   * Primary: `aubio.onset("default", 2048, 512, 48000)` + `aubio.tempo(...)`.
-  * Fallback (when `aubio` C-extension is unavailable): NumPy spectral-flux onset detector + inter-onset-interval (IOI) median BPM tracker (`40.0`–`240.0 BPM`).
+  * Fallback (when `aubio` C-extension is unavailable): NumPy spectral-flux onset detector + stabilized IOI median BPM tracker (`280 ms` beat debounce, outlier rejection, `70`–`165 BPM` octave folding, and EMA smoothing).
 * **Pitch & Key Estimation:**
   * `aubio` (default): `aubio.pitch("yinfft", ...)` with confidence gate `>= 0.65`.
   * `librosa`: `librosa.yin(..., fmin=75.0, fmax=1400.0)` over a 2048-sample rolling buffer (also used automatically if `aubio` is not installed).
