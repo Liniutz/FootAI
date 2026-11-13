@@ -33,7 +33,7 @@ pip install -r requirements.txt
 ```
 
 > [!NOTE]
-> On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cybernetic_session/audio_dsp.py` automatically falls back to a NumPy spectral-flux onset/IOI-BPM tracker and `librosa.yin` pitch estimator if the `aubio` C-extension is absent.
+> On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cyberjam/audio_dsp.py` automatically falls back to a NumPy spectral-flux onset/IOI-BPM tracker and `librosa.yin` pitch estimator if the `aubio` C-extension is absent.
 
 ## 3. Running the Session
 

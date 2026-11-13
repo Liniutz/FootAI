@@ -1,6 +1,6 @@
-# Cybernetic Session — Documentation Hub
+# CyberJam — Documentation Hub
 
-Welcome to the central documentation directory for **The Cybernetic Session** (`FootAI`). Every subsystem, interface contract, routing map, and ML integration boundary is documented here.
+Welcome to the central documentation directory for **CyberJam** (`FootAI`). Every subsystem, interface contract, routing map, and ML integration boundary is documented here.
 
 ## Documentation Index
 
@@ -9,7 +9,7 @@ Welcome to the central documentation directory for **The Cybernetic Session** (`
 | [architecture.md](./architecture.md) | End-to-end system architecture, concurrency model (threads + `asyncio`), and module map |
 | [setup-cachyos.md](./setup-cachyos.md) | CachyOS / Arch Linux `pacman` dependencies, Python `.venv`, Fish shell commands, and CLI flags |
 | [audio-and-routing.md](./audio-and-routing.md) | `sounddevice` ingress, DSP backends (`aubio` / `librosa` / `crepe`), UDP `:13000`, `pw-loopback`, and `qpwgraph` cable map |
-| [contracts-and-apis.md](./contracts-and-apis.md) | Visuals WebSocket (`:8080`) JSON schema, Wekinator OSC (`:12000`) addresses, and `CyberneticAI_Band` MIDI channels |
+| [contracts-and-apis.md](./contracts-and-apis.md) | Visuals WebSocket (`:8080`) JSON schema, Wekinator OSC (`:12000`) addresses, and `CyberJam_Band` MIDI channels |
 | [ml-integration.md](./ml-integration.md) | ML stub contract (`ml_brain.py`) and `MagentaAgent` (`magenta_agent.py`) TensorFlow/MIDI integration |
 
 ---
