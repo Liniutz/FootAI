@@ -57,6 +57,7 @@ pw-jack .venv/bin/python run_session.py --pipewire-loopback
 | `--sample-rate` | `48000` | Audio sample rate in Hz |
 | `--block-size` | `512` | Callback buffer size in frames (`512` @ 48kHz ≈ `10.67 ms`) |
 | `--pitch-backend` | `aubio` | Pitch tracker: `aubio`, `librosa`, or `crepe` |
+| `--noise-gate-db` | `-42.0` | RMS noise gate threshold in dBFS (`is_playing` & pitch/onset gating) |
 | `--no-jack` | `False` | Skip JACK host API preference and use default system API |
 | `--pipewire-loopback` | `False` | Spawn `pw-loopback` Virtual Source for TouchDesigner / React |
 | `--verbose`, `-v` | `False` | Enable debug logging |

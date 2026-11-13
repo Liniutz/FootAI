@@ -8,6 +8,7 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 ```json
 {
   "timestamp": 1763042450.123456,
+  "is_playing": true,
   "bpm": 122.45,
   "detected_pitch": {
     "hz": 110.0,
@@ -24,7 +25,8 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 | Field | Type | Range / Notes |
 | :--- | :--- | :--- |
 | `timestamp` | `float` | Unix epoch seconds |
-| `bpm` | `float` | `40.0` – `240.0` |
+| `is_playing` | `bool` | `true` when input RMS is above the noise gate (`--noise-gate-db`), `false` after `0.35s` of silence |
+| `bpm` | `float` | `0.0` initially, or `40.0` – `240.0` once detected |
 | `detected_pitch.hz` | `float` | Fundamental frequency in Hz (`0.0` below noise gate) |
 | `detected_pitch.note` | `string` | Note name + octave (e.g., `"E2"`, `"A2"`, `"N/A"`) |
 | `detected_pitch.midi` | `int` | `0` – `127` |

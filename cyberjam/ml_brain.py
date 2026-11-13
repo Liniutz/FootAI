@@ -141,9 +141,11 @@ class MLSequencer:
 
         while not self._stop_event.is_set():
             snap = self.state.snapshot()
-            bpm = float(snap["bpm"])  # type: ignore[arg-type]
+            raw_bpm = float(snap["bpm"])  # type: ignore[arg-type]
+            bpm = raw_bpm if raw_bpm > 0.0 else self.config.default_bpm
             pitch_info = snap["detected_pitch"]  # type: ignore[assignment]
-            key = str(pitch_info["key"])  # type: ignore[index]
+            raw_key = str(pitch_info["key"])  # type: ignore[index]
+            key = raw_key if raw_key != "N/A" else self.config.default_key
 
             # Refresh bar patterns at the start of every 4/4 bar
             if step == 0:

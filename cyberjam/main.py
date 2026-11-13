@@ -35,6 +35,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="aubio",
         help="Pitch detection backend (default: aubio).",
     )
+    parser.add_argument(
+        "--noise-gate-db",
+        type=float,
+        default=-42.0,
+        help="RMS noise gate threshold in dBFS (default: -42.0).",
+    )
     parser.add_argument("--no-jack", action="store_true", help="Do not prefer JACK host API; use default system API.")
     parser.add_argument(
         "--pipewire-loopback",
@@ -47,7 +53,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 async def run_async(config: SessionConfig) -> None:
     """Initialize and run all CyberJam subsystems until interrupted."""
-    state = MusicalState(bpm=config.default_bpm, detected_key=config.default_key)
+    state = MusicalState()
     midi = MidiEgress(port_name=config.midi_port_name)
     audio_dsp = AudioDSPEngine(config=config, state=state)
     ml_seq = MLSequencer(config=config, state=state, midi=midi)
@@ -102,6 +108,7 @@ def main(argv: list[str] | None = None) -> int:
         audio_device=device,
         prefer_jack=not args.no_jack,
         pitch_backend=args.pitch_backend,
+        silence_db=args.noise_gate_db,
         enable_pipewire_loopback=args.pipewire_loopback,
     )
 
