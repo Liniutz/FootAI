@@ -1,0 +1,67 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid #1d2330;
+}
+
+.app__title {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  color: #6ee7ff;
+}
+
+.app__main {
+  flex: 1;
+  padding: 1.5rem;
+}
+
+.launcher__button {
+  margin: 1rem 0;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid #6ee7ff;
+  border-radius: 8px;
+  background: #1e3a5f;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.launcher__button:hover {
+  background: #255082;
+}
+
+.launcher__hint {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.view h2 {
+  margin-top: 0;
+}
+
+.debug-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.5rem 1.25rem;
+  border-top: 1px solid #1d2330;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: #0d1119;
+}
+
+.debug-panel strong {
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}

@@ -7,6 +7,14 @@ consumes the existing (unmodified) Python engine APIs and provides two features:
 2. **Visualizer** — render the guitar notes you play (from DSP telemetry) and a live waveform
    of the audio, while the DAW/speakers produce the ML accompaniment audio.
 
+**Two-window / two-screen layout:** one running dev-server instance serves three hash routes
+(`#/` launcher, `#/menu`, `#/visualizer`). On load, the launcher **automatically attempts to open
+both screens as separate browser windows** (one per screen); if the browser blocks the popups it
+falls back to a single "Open both screens" button. The operator adjusts the Menu in real time on
+screen 1 while screen 2 shows the full Visualizer. The two windows share the user's `selection`
+live via the **BroadcastChannel** API (client-side only, no backend). There is no in-app
+navigation chrome — each view fills its window.
+
 > [!IMPORTANT]
 > This subsystem does **not** modify the Python engine, open any new ports, or add a backend.
 > It only *pulls* the documented contracts in
@@ -22,8 +30,9 @@ consumes the existing (unmodified) Python engine APIs and provides two features:
 | Build tool / language | **Vite** + **React** + **TypeScript** |
 | Live audio path | PipeWire Virtual Source **`"CyberJam Visual Audio"`** via `navigator.mediaDevices.getUserMedia` → Web Audio `AnalyserNode` (Option B in [`audio-and-routing.md`](./audio-and-routing.md)) |
 | Telemetry | WebSocket `ws://127.0.0.1:8080`, 20 Hz JSON |
-| Visual rendering | WebGL/Canvas lib — **react-three-fiber** *or* **PixiJS** (to be pinned in Task 1) |
+| Visual rendering | **PixiJS** (2D WebGL/Canvas) — pinned in Task 1; chosen over react-three-fiber as the lighter, more direct fit for 2D waveform/spectrum/note-lane visuals driven from an `AnalyserNode` |
 | State management | **Zustand** |
+| Window / navigation model | **Two separate browser windows** (one per screen) via a dependency-free **hash router** (`#/`, `#/menu`, `#/visualizer`). The `#/` launcher **auto-opens both windows** (`window.open`) with a blocked-popup fallback button; no in-app nav chrome. Live cross-window `selection` sync via **BroadcastChannel** |
 | Tests | **Vitest** + **React Testing Library** (jsdom) |
 | Menu selections | **Local app state only** (React state + `localStorage`); no backend writes |
 | ML instrument audio | Produced by the **DAW/speakers** (out of scope); the app visualizes only |
@@ -171,7 +180,7 @@ lanes with the same dependency can run simultaneously.
 
 ### Sprint 0 — Shared setup (serial; must land before the lanes fork)
 
-- [ ] **Task 1: Scaffold the Vite + React + TS app with tooling and a two-view shell.**
+- [x] **Task 1: Scaffold the Vite + React + TS app with tooling and a two-view shell.** ✅ *Done (Sprint 0).*
   - *Lane:* Sprint 0 (shared). *Depends on:* none. *Parallel with:* none — blocks everything.
   - *Objective:* Create the project (Vite `react-ts` template) with Zustand, Vitest + React Testing
     Library, and a chosen visual lib (react-three-fiber or PixiJS) installed with pinned versions.
@@ -181,8 +190,21 @@ lanes with the same dependency can run simultaneously.
   - *Tests:* Render `App`; assert both tab buttons exist and clicking toggles the active view.
   - *Demo:* `npm run dev` opens the app; user switches between empty Menu and Visualizer tabs;
     `npm test` passes.
+  - *Result:* Project created under `visualizer/`. PixiJS pinned as the visual lib. Shell in
+    `src/App.tsx` is a **dependency-free hash router** (`src/router.ts`) with three routes — `#/`
+    (launcher), `#/menu`, `#/visualizer` — so each view opens in its own browser window (one per
+    screen). The launcher **auto-opens both windows** on mount via `window.open` (`src/windows.ts`),
+    falling back to an "Open both screens" button when popups are blocked; the in-app nav links were
+    removed (title + debug bar only). Live cross-window `selection` sync via **BroadcastChannel**
+    (`src/sync.ts` + `useSelectionSync`). `MenuView`/`VisualizerView` placeholders. Config constants
+    in `src/config.ts`. `vitest.config.ts` uses jsdom. Verified: `npm run typecheck`, `npm test`
+    (22 passing: launcher auto-open + blocked fallback, routing, store, router parsing, cross-window
+    sync), and `npm run build` all green on branch `feat/react-visualizer`.
+  - *Note:* The original in-page tab toggle was replaced by the two-window routing model, then the
+    launcher was upgraded to auto-open both windows and the header nav links removed, per later
+    requirements (one screen per view, real-time Menu, live Visualizer).
 
-- [ ] **Task 2: Define typed data contracts and the Zustand store. (FROZEN CONTRACT)**
+- [x] **Task 2: Define typed data contracts and the Zustand store. (FROZEN CONTRACT)** ✅ *Done (Sprint 0).*
   - *Lane:* Sprint 0 (shared). *Depends on:* Task 1. *Parallel with:* none — blocks both lanes.
   - *Objective:* Create TS types mirroring the telemetry JSON (`TelemetryFrame` with nested
     `detected_pitch`) and the `SessionSelection` type (selected song, selected instruments). Create a
@@ -194,6 +216,13 @@ lanes with the same dependency can run simultaneously.
     owners to agree.**
   - *Tests:* Unit-test store actions (set frame, set selection, set statuses) and initial state.
   - *Demo:* A temporary debug panel renders `connectionStatus` and `selection` from the store.
+  - *Result:* Frozen contract in `src/types.ts` (`TelemetryFrame`/`DetectedPitch` matching the JSON
+    schema exactly, `SessionSelection` = `{ songId, instrumentIds }`, status unions, and the
+    `InstrumentEntry`/`SongEntry` catalog types). Store in `src/store.ts` with `latestFrame`,
+    `connectionStatus`, `audioStatus`, `selection` slices and actions (navigation moved to the hash
+    router, so there is no `view` slice). Temporary `DebugPanel` renders status + selection. Engine
+    defaults mirrored in `src/config.ts` (`DEFAULT_BPM`/`DEFAULT_KEY`). Verified by store unit
+    tests.
 
 ### Lane B — Menu feature (parallel with Lane C)
 
@@ -320,23 +349,41 @@ lanes with the same dependency can run simultaneously.
 
 ---
 
-## 6. Running (planned, once implemented)
+## 6. Running
 
-Start the Python engine with the virtual audio source so the browser can capture live audio:
+> [!NOTE]
+> Sprint 0 (shell + data layer) is implemented. Live telemetry/audio arrive in Tasks 3/6.
+
+Start the Python engine with the virtual audio source so the browser can capture live audio (on the
+CachyOS install machine; Fish shell):
 
 ```fish
 # Terminal 1 — engine with the visual audio virtual source
 pw-jack .venv/bin/python run_session.py --pipewire-loopback
 ```
 
-```fish
+Start the React visualizer dev server (PowerShell shown for the Windows dev workstation; use the
+equivalent in Fish/Bash):
+
+```powershell
 # Terminal 2 — React visualizer (dev server)
 cd visualizer
 npm install
 npm run dev
 ```
 
-The app connects to `ws://127.0.0.1:8080` for telemetry and prompts to enable audio from the
+**Two-screen workflow:** Vite prints a local URL (default `http://localhost:5173`). Open the root
+URL (`http://localhost:5173/`) once — the launcher **automatically opens two windows**, the Menu
+(`#/menu`) and the Visualizer (`#/visualizer`). Drag each to its screen:
+
+- Screen 1 (operator): Menu — choose song + instruments in real time.
+- Screen 2 (audience): Visualizer — full-screen live visuals.
+
+If the browser blocks the automatic popups, the launcher shows an **"Open both screens"** button;
+one click (a user gesture) opens them. Allowing popups for `localhost` makes it fully automatic.
+Both windows run from the same dev-server instance and sync the `selection` live over
+BroadcastChannel; a change in the Menu window appears immediately in the Visualizer window. Each
+window connects to `ws://127.0.0.1:8080` for telemetry and prompts to enable audio from the
 `"CyberJam Visual Audio"` device.
 
 ---
