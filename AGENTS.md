@@ -32,6 +32,18 @@ Read [`docs/README.md`](./docs/README.md) and [`docs/architecture.md`](./docs/ar
    - `test/<short-name>` for test additions
 3. Keep `.venv/`, `__pycache__/`, and `*.log` untracked (covered by `.gitignore`).
 4. Write clear commit messages and include exact verification commands/results in your PR description.
+5. **Close branches after merge (mandatory):**
+   - As soon as a PR is merged into `main`, delete its branch **both locally and on `origin`**:
+     ```fish
+     git push origin --delete <branch-name>
+     git branch -d <branch-name>
+     ```
+   - Prune stale remote-tracking refs and remove any local branch already merged into `main` before starting new work:
+     ```fish
+     git fetch --prune
+     git branch --merged main | grep -v '^\* main$' | xargs -r git branch -d
+     ```
+   - Never leave a merged branch behind. Enable GitHub's **"Automatically delete head branches"** setting (Settings → General) as a safety net — it requires repo admin rights.
 
 ---
 
