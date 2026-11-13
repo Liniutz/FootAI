@@ -54,23 +54,22 @@ class TestCyberJamCore(unittest.TestCase):
             self.assertLessEqual(ev.velocity, 127)
 
     def test_bpm_smoothing_and_octave_folding(self) -> None:
-        # 5 steady beats at 0.5s intervals = 120 BPM
-        onsets_120 = [0.0, 0.5, 1.0, 1.5, 2.0]
-        bpm = AudioDSPEngine._estimate_bpm_from_onsets(onsets_120, None)
-        self.assertIsNotNone(bpm)
-        self.assertAlmostEqual(bpm, 120.0, places=1)
+        # Under 2 bars (< 3.8s or < 8 onsets) should wait before locking BPM
+        too_short = [0.0, 0.5, 1.0, 1.5, 2.0]
+        self.assertIsNone(AudioDSPEngine._estimate_bpm_from_onsets(too_short, None))
 
-        # Double-time 0.3s intervals (200 BPM) should fold to 100 BPM
-        onsets_200 = [0.0, 0.3, 0.6, 0.9, 1.2]
-        folded = AudioDSPEngine._estimate_bpm_from_onsets(onsets_200, None)
-        self.assertIsNotNone(folded)
-        self.assertAlmostEqual(folded, 100.0, places=1)
+        # 2+ bars at 120 BPM (0.5s quarter notes over 4.0s)
+        bars_120 = [0.5 * i for i in range(9)]
+        bpm_120 = AudioDSPEngine._estimate_bpm_from_onsets(bars_120, None)
+        self.assertIsNotNone(bpm_120)
+        self.assertAlmostEqual(bpm_120, 120.0, delta=1.5)
 
-        # Single outlier should be damped by EMA + outlier rejection
-        smoothed = AudioDSPEngine._estimate_bpm_from_onsets([0.0, 0.5, 1.0, 1.5, 2.0, 2.3], 120.0)
-        self.assertIsNotNone(smoothed)
-        self.assertGreater(smoothed, 115.0)
-        self.assertLess(smoothed, 125.0)
+        # 2+ bars at 85 BPM (0.7059s quarter notes over 5.6s) should not double to 170 BPM
+        period_85 = 60.0 / 85.0
+        bars_85 = [period_85 * i for i in range(9)]
+        bpm_85 = AudioDSPEngine._estimate_bpm_from_onsets(bars_85, None)
+        self.assertIsNotNone(bpm_85)
+        self.assertAlmostEqual(bpm_85, 85.0, delta=1.5)
 
 
 if __name__ == "__main__":

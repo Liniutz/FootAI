@@ -139,9 +139,9 @@ class AudioDSPEngine:
 
         self._prev_mag: np.ndarray | None = None
         self._flux_history: deque[float] = deque(maxlen=32)
-        self._onset_times: deque[float] = deque(maxlen=24)
+        self._onset_times: deque[float] = deque(maxlen=48)
         self._last_onset_wall: float = 0.0
-        self._last_beat_wall: float = 0.0
+        self._last_bpm_calc_wall: float = 0.0
         self._smoothed_bpm: float | None = None
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
@@ -312,34 +312,42 @@ class AudioDSPEngine:
 
     @staticmethod
     def _estimate_bpm_from_onsets(onset_times: list[float], prev_bpm: float | None) -> float | None:
-        """Compute a stabilized BPM from beat timestamps using octave folding and EMA smoothing."""
-        if len(onset_times) < 5:
+        """Estimate 4/4 BPM over a 2-3 bar onset window using beat-grid periodicity scoring."""
+        if len(onset_times) < 8:
             return prev_bpm
 
-        intervals = np.diff(onset_times)
-        valid = intervals[(intervals >= 0.25) & (intervals <= 1.6)]
-        if len(valid) < 4:
+        span = onset_times[-1] - onset_times[0]
+        if span < 3.8:  # Require ~2 bars of 4/4 musical context before locking BPM
             return prev_bpm
 
-        median_ioi = float(np.median(valid))
-        # Reject outliers deviating > 35% from the median beat interval
-        inliers = valid[np.abs(valid - median_ioi) <= (0.35 * median_ioi)]
-        if len(inliers) < 3:
+        times = np.asarray(onset_times, dtype=np.float64)
+        diffs = times[:, None] - times[None, :]
+        # Keep causal pairwise intervals between 0.25s and 4.5s
+        dt = diffs[(diffs >= 0.25) & (diffs <= 4.5)]
+        if len(dt) < 6:
             return prev_bpm
 
-        raw_bpm = 60.0 / float(np.median(inliers))
-        # Fold double-time / half-time subdivisions into a natural 70-165 BPM band
-        while raw_bpm > 165.0:
-            raw_bpm *= 0.5
-        while raw_bpm < 70.0:
-            raw_bpm *= 2.0
+        candidates = np.arange(70.0, 166.0, 1.0, dtype=np.float64)
+        periods = 60.0 / candidates[:, None]  # Shape: (N_bpm, 1)
+        rem = np.mod(dt[None, :], periods)
+        phase_err = np.minimum(rem, periods - rem)
+        sigma = 0.045
+        scores = np.mean(np.exp(-0.5 * (phase_err / sigma) ** 2), axis=1)
+
+        max_score = float(np.max(scores))
+        if max_score < 0.35:
+            return prev_bpm
+
+        # Break 2x harmonic ties by choosing the lowest BPM within 96% of peak alignment
+        best_idx = int(np.where(scores >= max_score * 0.96)[0][0])
+        raw_bpm = float(candidates[best_idx])
 
         if prev_bpm is None:
             return raw_bpm
-        return (0.85 * prev_bpm) + (0.15 * raw_bpm)
+        return (0.75 * prev_bpm) + (0.25 * raw_bpm)
 
     def _fallback_onset_and_bpm(self, mag: np.ndarray | None, rms: float) -> tuple[bool, float | None]:
-        """Lightweight spectral-flux onset detector & stabilized IOI BPM tracker."""
+        """Lightweight spectral-flux onset detector & 2-3 bar 4/4 BPM tracker."""
         if mag is None or rms <= self._noise_gate_rms:
             self._prev_mag = mag
             return False, None
@@ -361,20 +369,27 @@ class AudioDSPEngine:
         bpm: float | None = None
         if is_onset:
             self._last_onset_wall = now
-            # Reset beat history after a long pause (> 2.5s)
-            if self._onset_times and (now - self._onset_times[-1]) > 2.5:
+            # Reset beat history after a long pause (> 3.0s)
+            if self._onset_times and (now - self._onset_times[-1]) > 3.0:
                 self._onset_times.clear()
                 self._smoothed_bpm = None
+                self._last_bpm_calc_wall = 0.0
 
-            # Use a 280ms beat-level debounce so fast pick subdivisions don't spike BPM
-            if (now - self._last_beat_wall) >= 0.28:
-                self._last_beat_wall = now
-                self._onset_times.append(now)
-                self._smoothed_bpm = self._estimate_bpm_from_onsets(
+            self._onset_times.append(now)
+            # Trim to ~3 bars (last 7.5 seconds)
+            while self._onset_times and (now - self._onset_times[0]) > 7.5:
+                self._onset_times.popleft()
+
+            # Recompute BPM at most once every 2.0s (~1 bar) once 2+ bars are collected
+            if (now - self._last_bpm_calc_wall) >= 2.0:
+                estimated = self._estimate_bpm_from_onsets(
                     list(self._onset_times),
                     self._smoothed_bpm,
                 )
-                bpm = self._smoothed_bpm
+                if estimated is not None:
+                    self._last_bpm_calc_wall = now
+                    self._smoothed_bpm = estimated
+                    bpm = estimated
         return is_onset, bpm
 
     def _estimate_pitch(self, samples: np.ndarray, frame_counter: int) -> float:
