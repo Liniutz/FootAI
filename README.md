@@ -1,4 +1,4 @@
-# The Cybernetic Session
+# CyberJam
 
 Central low-latency audio routing, DSP extraction, ML MIDI generation, Wekinator OSC-to-MIDI CC, and visual telemetry hub for **"The Cybernetic Session"** interactive museum installation.
 
