@@ -588,6 +588,20 @@ view). Added after the per-song difficulty-mode menu step.
 
 ---
 
+### Removed the player-facing fretboard ribbon ✅ *Done.*
+
+The horizontal 6-string fretboard rendered the **ML band's** MIDI (drums/bass gems), not the
+player's guitar, and required a manual "Connect Band MIDI" step. The right-side **NotePitchPanel**
+already shows the player's detected note (name, pitch marker, trail, onset pulse) from telemetry, so
+the fretboard duplicated no player feedback and only added clutter + a manual connect. It was
+**removed from `VisualizerView`**, along with the `useBandMidi` hook usage and the "Connect Band
+MIDI" button; `StatusBar` gained a `showMidi` prop (passed `false` here) so no dangling "Band MIDI
+off" pill or guidance remains. The band-MIDI data layer (`midi/band.ts`, `useBandMidi`,
+`Fretboard.tsx`, store `bandEvents`) and its tests are retained for possible reuse but are no longer
+wired into the view. Full suite **200 green**; `typecheck` + `build` green.
+
+---
+
 ## 6. Running
 
 > [!NOTE]
