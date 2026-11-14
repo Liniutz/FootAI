@@ -41,7 +41,7 @@ describe("SessionOverlay", () => {
   it("renders only selected lanes and the chosen song title", () => {
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums", "bass"] },
+        selection: { songId: "cargo-song", instrumentIds: ["drums", "bass"], mode: "experienced" },
       });
     });
     render(<SessionOverlay />);
@@ -55,7 +55,7 @@ describe("SessionOverlay", () => {
   it("shows reference BPM/key vs live values and flags a match", () => {
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums"] },
+        selection: { songId: "cargo-song", instrumentIds: ["drums"], mode: "experienced" },
         latestFrame: frame({
           bpm: 128,
           detected_pitch: { hz: 82, note: "E2", midi: 40, key: "E" },
@@ -79,7 +79,7 @@ describe("SessionOverlay", () => {
 
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: null, instrumentIds: ["drums"] },
+        selection: { songId: null, instrumentIds: ["drums"], mode: null },
       });
     });
     rerender(<SessionOverlay />);
@@ -91,7 +91,7 @@ describe("SessionOverlay", () => {
   it("shows live BPM/key without a reference target for Freestyle", () => {
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"] },
+        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"], mode: null },
         latestFrame: frame({
           bpm: 134,
           detected_pitch: { hz: 220, note: "A3", midi: 57, key: "A" },

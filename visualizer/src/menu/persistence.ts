@@ -10,7 +10,7 @@
  * that no longer exists in the catalog (e.g. after a catalog change) is
  * silently dropped rather than carried forward.
  */
-import type { SessionSelection } from "../types";
+import type { DifficultyMode, SessionSelection } from "../types";
 import { INITIAL_SELECTION } from "../store";
 import { isValidInstrumentId, isValidSongId } from "../data/catalog";
 
@@ -52,7 +52,12 @@ function sanitize(raw: unknown): SessionSelection {
   // De-duplicate while preserving first-seen order.
   const uniqueInstrumentIds = [...new Set(instrumentIds)];
 
-  return { songId, instrumentIds: uniqueInstrumentIds };
+  const mode: DifficultyMode | null =
+    candidate.mode === "beginner" || candidate.mode === "experienced"
+      ? candidate.mode
+      : null;
+
+  return { songId, instrumentIds: uniqueInstrumentIds, mode };
 }
 
 /**

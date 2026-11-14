@@ -94,12 +94,25 @@ export interface SongEntry {
 // Session selection (written by the Menu lane; read by the Visualizer lane)
 // ---------------------------------------------------------------------------
 
+/**
+ * Difficulty mode chosen per song (not applicable to Freestyle).
+ *   - "beginner":   the Visualizer adds a chord diagram with an approaching
+ *                   timing circle (rendering lands in a later prompt).
+ *   - "experienced": the same base view, with little/no beginner assistance.
+ */
+export type DifficultyMode = "beginner" | "experienced";
+
 /** The user's Menu choices. Persisted to localStorage (Task 5). */
 export interface SessionSelection {
   /** Selected song id, or null when nothing is chosen yet. */
   songId: string | null;
   /** Selected instrument ids (multi-select). */
   instrumentIds: string[];
+  /**
+   * Difficulty mode for the selected song, or null when not yet chosen.
+   * Always null for Freestyle (the mode step does not apply there).
+   */
+  mode: DifficultyMode | null;
 }
 
 // ---------------------------------------------------------------------------

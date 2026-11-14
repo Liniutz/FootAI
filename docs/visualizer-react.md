@@ -137,8 +137,9 @@ flowchart TD
 
 **The frozen contract (produced in Task 2, do not change unilaterally after Sprint 0):**
 - `TelemetryFrame` — the telemetry JSON shape (Visualizer lane reads it).
-- `SessionSelection` — `{ songId, instrumentIds }` (Menu lane writes it, Visualizer lane reads it
-  in Task 9).
+- `SessionSelection` — `{ songId, instrumentIds, mode }` where `mode` is the per-song difficulty
+  (`"beginner" | "experienced" | null`; always null for Freestyle). The Menu lane writes it; the
+  Visualizer lane reads it in Task 9.
 - The Zustand store slices `latestFrame`, `connectionStatus`, `audioStatus`, `selection` and their
   actions.
 - The `catalog.ts` instrument/song entry types (`id`, `lane`, `displayColor`, `midiChannel`,
@@ -217,7 +218,7 @@ lanes with the same dependency can run simultaneously.
   - *Tests:* Unit-test store actions (set frame, set selection, set statuses) and initial state.
   - *Demo:* A temporary debug panel renders `connectionStatus` and `selection` from the store.
   - *Result:* Frozen contract in `src/types.ts` (`TelemetryFrame`/`DetectedPitch` matching the JSON
-    schema exactly, `SessionSelection` = `{ songId, instrumentIds }`, status unions, and the
+    schema exactly, `SessionSelection` = `{ songId, instrumentIds, mode }`, status unions, and the
     `InstrumentEntry`/`SongEntry` catalog types). Store in `src/store.ts` with `latestFrame`,
     `connectionStatus`, `audioStatus`, `selection` slices and actions (navigation moved to the hash
     router, so there is no `view` slice). Temporary `DebugPanel` renders status + selection. Engine
@@ -282,6 +283,16 @@ lanes with the same dependency can run simultaneously.
     semantics preserved via `role="radio"`/`aria-pressed`). Tests: pure `readActions`/`stepActions`
     units cover button/axis mapping and rising-edge detection (6 new). Re-verified: `npm run
     typecheck`, `npm test` (55 passing), and `npm run build` all green.
+  - *Enhancement (song option + difficulty mode):* Added a **Freestyle** catalog entry (guitar-led
+    jam, `freestyle: true`; see Task 4). Added a per-song **difficulty mode** step
+    (`beginner | experienced`) stored on `SessionSelection.mode`: after a real song is picked the
+    Menu shows a "Mode" card group (single-select radios, in the controller focus ring between songs
+    and instruments); Start stays disabled until a mode is chosen. **Freestyle skips the mode step**
+    and can start immediately. `setSong` clears `mode` so it is re-chosen per song; persistence
+    sanitizes `mode` to the two valid values. The actual beginner chord-diagram / approaching-timing-
+    circle Visualizer rendering is a later task; this change only establishes the data model + menu
+    UI. Re-verified: `npm run typecheck`, `npm test` (176 passing), and `npm run build` all green on
+    branch `feat/menu-freestyle-song`.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 

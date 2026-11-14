@@ -51,6 +51,7 @@ describe("startSelectionSync", () => {
     const selection: SessionSelection = {
       songId: "cargo-song",
       instrumentIds: ["drums", "bass"],
+      mode: null,
     };
     windowA.publish(selection);
 
@@ -64,7 +65,7 @@ describe("startSelectionSync", () => {
     const applied: SessionSelection[] = [];
     const windowA = startSelectionSync((sel) => applied.push(sel));
 
-    windowA.publish({ songId: "x", instrumentIds: [] });
+    windowA.publish({ songId: "x", instrumentIds: [], mode: null });
 
     expect(applied).toEqual([]);
     windowA.dispose();
@@ -74,11 +75,12 @@ describe("startSelectionSync", () => {
     const sender = startSelectionSync(() => {});
     const receiver = startSelectionSync(); // default applier -> store
 
-    sender.publish({ songId: "cargo-song", instrumentIds: ["synth"] });
+    sender.publish({ songId: "cargo-song", instrumentIds: ["synth"], mode: null });
 
     expect(useVisualizerStore.getState().selection).toEqual({
       songId: "cargo-song",
       instrumentIds: ["synth"],
+      mode: null,
     });
 
     sender.dispose();
@@ -90,7 +92,7 @@ describe("startSelectionSync", () => {
     const sync = startSelectionSync();
     // Should not throw with no channel present.
     expect(() =>
-      sync.publish({ songId: null, instrumentIds: [] }),
+      sync.publish({ songId: null, instrumentIds: [], mode: null }),
     ).not.toThrow();
     sync.dispose();
   });

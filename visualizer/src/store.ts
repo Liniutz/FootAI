@@ -15,12 +15,14 @@ import type {
   PerformanceMood,
   SessionSelection,
   TelemetryFrame,
+  DifficultyMode,
 } from "./types";
 
 /** Initial, empty selection (nothing chosen yet). */
 export const INITIAL_SELECTION: SessionSelection = {
   songId: null,
   instrumentIds: [],
+  mode: null,
 };
 
 /** Max band MIDI events retained for the scrolling ribbon history. */
@@ -54,6 +56,7 @@ export interface VisualizerState {
   selection: SessionSelection;
   setSelection: (selection: SessionSelection) => void;
   setSong: (songId: string | null) => void;
+  setMode: (mode: DifficultyMode | null) => void;
   toggleInstrument: (instrumentId: string) => void;
   resetSelection: () => void;
 }
@@ -87,7 +90,11 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
   selection: INITIAL_SELECTION,
   setSelection: (selection) => set({ selection }),
   setSong: (songId) =>
-    set((state) => ({ selection: { ...state.selection, songId } })),
+    // Switching songs clears the previously chosen difficulty mode so the
+    // operator re-picks it per song (and Freestyle simply leaves it null).
+    set((state) => ({ selection: { ...state.selection, songId, mode: null } })),
+  setMode: (mode) =>
+    set((state) => ({ selection: { ...state.selection, mode } })),
   toggleInstrument: (instrumentId) =>
     set((state) => {
       const has = state.selection.instrumentIds.includes(instrumentId);

@@ -29,7 +29,7 @@ describe("useVisualizerStore", () => {
     expect(s.latestFrame).toBeNull();
     expect(s.connectionStatus).toBe("connecting");
     expect(s.audioStatus).toBe("idle");
-    expect(s.selection).toEqual({ songId: null, instrumentIds: [] });
+    expect(s.selection).toEqual({ songId: null, instrumentIds: [], mode: null });
   });
 
   it("sets the latest telemetry frame", () => {
@@ -48,20 +48,29 @@ describe("useVisualizerStore", () => {
   it("sets the full selection", () => {
     useVisualizerStore
       .getState()
-      .setSelection({ songId: "cargo-song", instrumentIds: ["drums"] });
+      .setSelection({ songId: "cargo-song", instrumentIds: ["drums"], mode: "beginner" });
     expect(useVisualizerStore.getState().selection).toEqual({
       songId: "cargo-song",
       instrumentIds: ["drums"],
+      mode: "beginner",
     });
   });
 
-  it("sets the selected song without clearing instruments", () => {
+  it("sets the selected song without clearing instruments but resets mode", () => {
     useVisualizerStore.getState().toggleInstrument("bass");
+    useVisualizerStore.getState().setMode("experienced");
     useVisualizerStore.getState().setSong("cargo-song");
     expect(useVisualizerStore.getState().selection).toEqual({
       songId: "cargo-song",
       instrumentIds: ["bass"],
+      mode: null,
     });
+  });
+
+  it("sets the difficulty mode", () => {
+    useVisualizerStore.getState().setSong("cargo-song");
+    useVisualizerStore.getState().setMode("beginner");
+    expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
   });
 
   it("toggles instruments on and off", () => {
@@ -82,7 +91,7 @@ describe("useVisualizerStore", () => {
   it("resets the selection", () => {
     useVisualizerStore
       .getState()
-      .setSelection({ songId: "x", instrumentIds: ["a", "b"] });
+      .setSelection({ songId: "x", instrumentIds: ["a", "b"], mode: "beginner" });
     useVisualizerStore.getState().resetSelection();
     expect(useVisualizerStore.getState().selection).toEqual(INITIAL_SELECTION);
   });

@@ -108,3 +108,9 @@ export function isValidInstrumentId(id: string): boolean {
 export function isValidSongId(id: string): boolean {
   return getSongById(id) !== undefined;
 }
+
+/** True when the given song id is the freestyle jam mode (not a real song). */
+export function isFreestyleSong(id: string | null): boolean {
+  if (!id) return false;
+  return getSongById(id)?.freestyle === true;
+}
