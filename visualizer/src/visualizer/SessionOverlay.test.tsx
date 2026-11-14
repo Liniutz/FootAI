@@ -88,12 +88,38 @@ describe("SessionOverlay", () => {
     expect(screen.queryByTestId("session-lane-bass")).not.toBeInTheDocument();
   });
 
+  it("opens the two-bar popup again when the engine returns to wait after silence", () => {
+    act(() => {
+      useVisualizerStore.setState({
+        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"], mode: null },
+        latestFrame: frame({ demo_phase: "wait", demo_prompt: "Play 2 bars (8 measures) to set the groove." }),
+      });
+    });
+    render(<SessionOverlay />);
+    expect(screen.getByRole("dialog", { name: "Freestyle groove setup" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Play 2 bars" })).toBeInTheDocument();
+  });
+
+  it("shows the capture status prompt for Freestyle", () => {
+    act(() => {
+      useVisualizerStore.setState({
+        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"], mode: null },
+        latestFrame: frame({ demo_phase: "capture", demo_prompt: "Listening... 4s of 2 bars left." }),
+      });
+    });
+    render(<SessionOverlay />);
+    expect(screen.getByRole("dialog", { name: "Freestyle groove setup" })).toBeInTheDocument();
+    expect(screen.getByTestId("freestyle-prompt-status")).toHaveTextContent("Listening... 4s of 2 bars left.");
+  });
+
   it("shows live BPM/key without a reference target for Freestyle", () => {
     act(() => {
       useVisualizerStore.setState({
         selection: { songId: "freestyle", instrumentIds: ["drums", "bass"], mode: null },
         latestFrame: frame({
           bpm: 134,
+          demo_phase: "locked",
+          demo_prompt: "Locked: 134 BPM.",
           detected_pitch: { hz: 220, note: "A3", midi: 57, key: "A" },
         }),
       });
@@ -116,5 +142,6 @@ describe("SessionOverlay", () => {
     expect(screen.getByTestId("session-freestyle-tag")).toHaveTextContent(
       /band follows/i,
     );
+    expect(screen.queryByTestId("freestyle-prompt-backdrop")).not.toBeInTheDocument();
   });
 });

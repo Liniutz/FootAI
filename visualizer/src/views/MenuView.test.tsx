@@ -1,14 +1,15 @@
 /** Spec Task 5 tests: Menu view selection, persistence, rehydrate, navigation. */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, act } from "@testing-library/react";
 import { MenuView } from "./MenuView";
 import { useVisualizerStore } from "../store";
 import { INITIAL_SELECTION } from "../store";
 import { SELECTION_STORAGE_KEY } from "../menu/persistence";
-import { startEngineSession } from "../sessionControl";
+import { startEngineSession, stopEngineSession } from "../sessionControl";
 
 vi.mock("../sessionControl", () => ({
   startEngineSession: vi.fn().mockResolvedValue({ running: true, started: true }),
+  stopEngineSession: vi.fn().mockResolvedValue({ running: false, stopped: true }),
 }));
 
 function resetStore() {
@@ -123,6 +124,17 @@ describe("MenuView", () => {
     expect(startEngineSession).toHaveBeenCalledOnce();
     expect(window.location.hash).toBe("#/visualizer");
     expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
+  });
+
+  it("shows stop-session feedback after gracefully stopping the engine", async () => {
+    render(<MenuView />);
+    const stop = screen.getByRole("button", { name: /Stop Session/ });
+    await act(async () => {
+      stop.click();
+      await Promise.resolve();
+    });
+    expect(stopEngineSession).toHaveBeenCalledOnce();
+    expect(screen.getByRole("status")).toHaveTextContent("CyberJam session stopped.");
   });
 
   it("does not show the mode step for Freestyle and starts without a mode", () => {

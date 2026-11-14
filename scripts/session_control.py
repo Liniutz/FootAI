@@ -36,7 +36,7 @@ async def status(_request: web.Request) -> web.Response:
     return web.json_response({"running": process_running()})
 
 
-async def start(_request: web.Request) -> web.Response:
+async def start(request: web.Request) -> web.Response:
     global PROCESS, LOOPBACK
     if process_running():
         return web.json_response({"running": True, "started": False})
@@ -100,9 +100,20 @@ async def start(_request: web.Request) -> web.Response:
             status=500,
         )
 
+    # Freestyle capture is automatic for Menu-started live sessions; explicit
+    # command-line --demo remains available when launching the script directly.
+    try:
+        payload = await request.json()
+    except (ValueError, web.HTTPException):
+        payload = {}
+    freestyle = payload.get("mode") == "freestyle" if isinstance(payload, dict) else False
+    environment = os.environ.copy()
+    environment["CYBERJAM_FREESTYLE"] = "1" if freestyle else "0"
     # Use the supported live-session launcher (guitar passthrough, DSP, backing
     # band, telemetry and optional Magenta worker), not experimental run_session.py.
-    PROCESS = subprocess.Popen([fish, str(launcher)], cwd=ROOT, start_new_session=True)
+    PROCESS = subprocess.Popen(
+        [fish, str(launcher)], cwd=ROOT, env=environment, start_new_session=True
+    )
     # Wait briefly for early startup errors without blocking the event loop.
     await asyncio.sleep(0.8)
     if PROCESS.poll() is not None:
@@ -138,6 +149,24 @@ async def stop(_request: web.Request) -> web.Response:
                 await asyncio.to_thread(LOOPBACK.wait, 3)
         LOOPBACK = None
         stopped = True
+    # Remove orphaned visual loopbacks from earlier controller runs. Only
+    # terminate processes with the exact helper command and this user's UID.
+    if os.geteuid() == os.getuid():
+        uid = str(os.getuid())
+        for proc in Path("/proc").iterdir():
+            if not proc.name.isdigit():
+                continue
+            try:
+                if (proc / "status").read_text().split("Uid:", 1)[1].split()[0] != uid:
+                    continue
+                cmdline = (proc / "cmdline").read_bytes().replace(b"\\0", b" ").decode(errors="ignore")
+                if "pw-loopback" in cmdline and "CyberJam_VisualSource" in cmdline:
+                    pid = int(proc.name)
+                    if pid != os.getpid():
+                        os.kill(pid, signal.SIGTERM)
+                        stopped = True
+            except (OSError, IndexError, ValueError, ProcessLookupError):
+                continue
     return web.json_response({"running": False, "stopped": stopped})
 
 

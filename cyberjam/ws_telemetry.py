@@ -9,11 +9,41 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from aiohttp import web
 
 from .config import MusicalState, SessionConfig
 
 logger = logging.getLogger(__name__)
+
+
+def telemetry_payload(snapshot: dict, timestamp: float | None = None) -> dict:
+    """Map internal MusicalState fields to the stable visualizer wire schema."""
+    pitch_hz = float(snapshot.get("pitch_hz") or 0.0)
+    midi_note = int(snapshot.get("midi_note") or 0)
+    bpm = float(snapshot.get("bpm") or 0.0)
+    centroid = float(
+        snapshot.get("spectral_centroid_hz") or snapshot.get("centroid") or 0.0
+    )
+    rms = float(snapshot.get("rms") or 0.0)
+    key = str(snapshot.get("key") or "N/A").split()[0]
+    payload = dict(snapshot)
+    payload.update(
+        timestamp=time.time() if timestamp is None else timestamp,
+        bpm=bpm,
+        detected_pitch={
+            "hz": pitch_hz,
+            "note": str(snapshot.get("note") or "N/A"),
+            "midi": max(0, min(127, midi_note)),
+            "key": key,
+        },
+        rms=max(0.0, min(1.0, rms)),
+        spectral_centroid_hz=centroid,
+        onset=bool(snapshot.get("onset", False)),
+        demo_phase=str(snapshot.get("demo_phase") or ""),
+        demo_prompt=str(snapshot.get("demo_prompt") or ""),
+    )
+    return payload
 
 
 class VisualTelemetryServer:
@@ -47,7 +77,13 @@ class VisualTelemetryServer:
             if not self._clients:
                 continue
             snapshot = self.state.snapshot()
-            payload = json.dumps(snapshot)
+            # Serialize internal state to the stable visualizer wire schema,
+            # retaining internal keys for existing local consumers.
+            try:
+                payload = json.dumps(telemetry_payload(snapshot))
+            except (TypeError, ValueError, OverflowError):
+                logger.warning("Invalid musical state values; skipping telemetry frame")
+                continue
             for ws in list(self._clients):
                 try:
                     await ws.send_str(payload)

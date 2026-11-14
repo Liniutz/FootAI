@@ -3,7 +3,7 @@
 The **CyberJam Visualizer** is a standalone React web application for the installation. It
 consumes the existing (unmodified) Python engine APIs and provides two features:
 
-1. **Menu** — choose the song and the instruments for the session.
+1. **Menu** — choose the song and the instruments for the session; starting Freestyle automatically begins a two-bar (eight-measure) tempo-capture before the backing band starts.
 2. **Visualizer** — render the guitar notes you play (from DSP telemetry) and a live waveform
    of the audio, while the DAW/speakers produce the ML accompaniment audio.
 
@@ -636,9 +636,9 @@ npm run dev
 The dev script starts the loopback-only session-control service on `127.0.0.1:8765` alongside Vite.
 Pressing **Start Session** starts the PipeWire virtual source using
 `scripts/setup_pipewire_loopback.sh`, then launches `./start_cyberjam.sh` (the supported in-process
-pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). The virtual
-source and engine are intentionally left running if browser windows close. Stop both with
-`curl -X POST http://127.0.0.1:8765/stop`; stopping the dev server stops only the control service.
+pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). The virtual source and engine are intentionally left running if browser windows close. Use **Stop
+Session** in the Menu to gracefully stop the engine, RNN worker, and virtual source together. Stopping
+the dev server stops only the control service.
 
 **Two-screen workflow:** Vite prints a local URL (default `http://localhost:5173`). Open the root
 URL (`http://localhost:5173/`) once — the launcher **automatically opens two windows**, the Menu

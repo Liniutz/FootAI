@@ -22,6 +22,15 @@ describe("parseTelemetryFrame", () => {
     expect(parseTelemetryFrame(JSON.stringify(VALID))).toEqual(VALID);
   });
 
+  it("preserves optional guided-capture fields from the engine", () => {
+    const guided = {
+      ...VALID,
+      demo_phase: "locked",
+      demo_prompt: "Locked: 120 BPM.",
+    };
+    expect(parseTelemetryFrame(guided)).toEqual(guided);
+  });
+
   it("rejects malformed JSON", () => {
     expect(parseTelemetryFrame("{not json")).toBeNull();
   });
