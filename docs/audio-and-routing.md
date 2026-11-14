@@ -5,12 +5,14 @@
 * **Sample Rate & Block Size:** `48000 Hz`, `512` frames (`~10.67 ms` per block), mono (`float32`).
 * **Onset Detection:**
   * `aubio.onset("default", 2048, 512, 48000)` when `aubio` is installed, otherwise the SuperFlux detector below. Onsets are debounced to `>= 100 ms`.
-* **BPM Detection (guitar-optimised, `cyberjam/tempo.py`, pure NumPy — same path with or without `aubio`):**
+* **BPM Detection (guitar-optimised, `cyberjam/tempo.py`, pure NumPy — always used for tempo, even when `aubio` is present):**
   * Envelope: log-compressed `80–5000 Hz` SuperFlux (3-bin vibrato suppression + RMS accent weighting) at `~93.75` frames/s, kept in a `6 s` sliding window.
-  * Estimator: FFT autocorrelation scored with a *comb* over lag multiples `0.5x, 1x, 2x, 3x, 4x, 8x` of each candidate beat (resolves the half/double-tempo and dotted-beat ambiguity of strummed guitar), times a soft log-Gaussian prior around `110 BPM` (`±1.4 octaves`). Search range `60–180 BPM`.
-  * Stability: first lock needs two agreeing estimates (`±6%`); a tempo change needs two consecutive agreeing estimates; agreeing estimates are EMA-smoothed (`0.7/0.3`); estimates below confidence `1.6` are ignored. Re-estimated every `1 s` once `>= 3.8 s` of playing is buffered.
-  * Silence: a short pause pushes zero-flux frames (keeps real-time spacing); `> 3 s` silence resets the tracker, the bar/beat counter **and** `state.bpm` to `0.0`.
-  * Accuracy on synthetic strum envelopes (quarters/8ths/16ths/folk, jitter + noise): `~77%` exact (±4%) and `~91%` within a factor of 2 over `75–140 BPM`; end-to-end on synthesized Karplus-Strong chord strums it locked `80/100/120 BPM` exactly (one `80 BPM` 16th-note pattern locked at the double tempo `160`).
+  * Estimator: FFT autocorrelation scored with a *comb* over lag multiples `0.5x, 1x, 2x, 3x, 4x, 8x` of each candidate beat, times a soft log-Gaussian prior around `88 BPM` (`±1.2 octaves`). Search range **`40–180 BPM`**.
+  * Octave disambiguation: readings at half/double the best score (within 15 %) are compared and the one closest to the prior wins, so an 8th-note strum at `69 BPM` stays `69` instead of jumping to `138`.
+  * `aubio.tempo` is only used as a cold-start hint before the tracker has `~3.8 s` of material — its own tempo estimate locks onto the double tempo on slow riffs.
+  * Stability: first lock needs two agreeing estimates (`±6%`); a tempo change needs two consecutive agreeing estimates; agreeing estimates are EMA-smoothed (`0.7/0.3`); estimates below confidence `1.6` are ignored. Re-estimated every `1 s`.
+  * Silence: a short pause pushes zero-flux frames (keeps real-time spacing); `> 3 s` silence resets the tracker, the bar/beat counter and `state.bpm`; a band stop also calls `reset_tempo()` so the next take at a different tempo is picked up immediately.
+  * Manual override: `--bpm-factor 0.5` (`CYBERJAM_BPM_FACTOR`) halves the detected tempo for slow ballads, `2.0` doubles it.
 * **Pitch & Key Estimation:**
   * `auto` (default): `aubio` if the C-extension imports, otherwise `librosa`. The active backend is logged at startup.
   * `aubio`: `aubio.pitch("yin", ...)` with confidence gate `>= 0.65` (falls back to `librosa` with a warning if `aubio` is missing). `yin` is used instead of `yinfft` because `yinfft` reports a constant `0.0` confidence in the packaged aubio build, which silently blocked every key detection.

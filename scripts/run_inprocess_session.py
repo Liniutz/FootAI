@@ -112,6 +112,9 @@ LEAD_ENABLED = os.environ.get("CYBERJAM_LEAD", "0") == "1"
 DEMO_MODE = os.environ.get("CYBERJAM_DEMO", "0") == "1"
 # Freestyle defaults to twice the original two-bar capture (four bars total).
 DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "4"))
+# Manual tempo scaling: 0.5 halves the detected tempo (half-time feel for slow
+# ballads), 2.0 doubles it. Escape hatch for ambiguous detections.
+BPM_FACTOR = float(os.environ.get("CYBERJAM_BPM_FACTOR", "1.0"))
 
 # Sound selection. GeneralUser GS ships several kits in percussion bank 128;
 # "power" is the rock kit used by default.
@@ -737,6 +740,10 @@ class InProcessCyberJamSession:
             # The bass sings in minor only, whatever mode the guitar implies.
             mode = "minor"
 
+            # Manual tempo scaling for ambiguous (half/double) detections.
+            if BPM_FACTOR != 1.0:
+                bpm = max(30.0, min(240.0, bpm * BPM_FACTOR))
+
             step_dur = 60.0 / bpm / 4.0
 
             # Record guitar onsets as "taps" for GrooVAE (2 bars = 32 steps).
@@ -1029,6 +1036,12 @@ def _parse_args() -> "argparse.Namespace":
     parser.add_argument("--lead", action="store_true", help="Enable the generated lead line.")
     parser.add_argument("--creativity", type=float, default=None, help="Fallback engine creativity 0..1.")
     parser.add_argument(
+        "--bpm-factor",
+        type=float,
+        default=BPM_FACTOR,
+        help="Scale the detected tempo (0.5 = half-time for slow ballads, 2.0 = double).",
+    )
+    parser.add_argument(
         "--demo",
         action="store_true",
         help="Guided demo: prompt the player, capture a short window, then lock BPM + key.",
@@ -1104,7 +1117,7 @@ def _list_drum_kits(soundfont: str) -> None:
 def main() -> None:
     global RNN_SET, RNN_MODELS_DIR, RNN_ENABLED, LEAD_ENABLED, CREATIVITY, DEMO_MODE, DEMO_BARS
     global SOUNDFONT_PATH, DRUM_SOUNDFONT, DRUM_KIT, DRUM_PRESET
-    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH
+    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH, BPM_FACTOR
 
     args = _parse_args()
 
@@ -1120,6 +1133,8 @@ def main() -> None:
         LEAD_ENABLED = True
     if args.creativity is not None:
         CREATIVITY = max(0.0, min(1.0, args.creativity))
+    if args.bpm_factor and args.bpm_factor > 0:
+        BPM_FACTOR = max(0.25, min(4.0, args.bpm_factor))
     if args.demo:
         DEMO_MODE = True
     DEMO_BARS = max(1, args.demo_bars)
