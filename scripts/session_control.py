@@ -121,7 +121,9 @@ async def start(request: web.Request) -> web.Response:
     environment["CYBERJAM_FREESTYLE"] = "1" if freestyle else "0"
     environment["CYBERJAM_RNN_SET"] = models
     # Lowest-latency defaults for the dev flow; override with CYBERJAM_BLOCK.
-    block = str(environment.get("CYBERJAM_BLOCK", "64"))
+    # 64 triggered a PortAudio ALSA underrun assertion on this machine (PipeWire
+    # bridge), so 128 is the reliable minimum.
+    block = str(environment.get("CYBERJAM_BLOCK", "128"))
     environment["CYBERJAM_BLOCK"] = block
     environment.setdefault("CYBERJAM_LATENCY", "low")
     # Use the supported live-session launcher (guitar passthrough, DSP, backing
