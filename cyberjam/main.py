@@ -57,7 +57,7 @@ async def run_async(config: SessionConfig) -> None:
     state = MusicalState()
     midi = MidiEgress(port_name=config.midi_port_name)
     audio_dsp = AudioDSPEngine(config=config, state=state)
-    ml_seq = MLSequencer(config=config, state=state, midi=midi)
+    ml_seq = MLSequencer(config=config, state=state, egress=midi)
     osc_server = WekinatorOSCServer(config=config, midi=midi)
     ws_server = VisualTelemetryServer(config=config, state=state)
 

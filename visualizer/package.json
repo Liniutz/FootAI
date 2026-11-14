@@ -5,7 +5,7 @@
   "type": "module",
   "description": "CyberJam React visualizer — Menu + Visualizer views consuming the engine WebSocket/Web Audio contracts.",
   "scripts": {
-    "dev": "vite",
+    "dev": "bash ./dev.sh",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test": "vitest run",

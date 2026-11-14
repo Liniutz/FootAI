@@ -140,17 +140,37 @@ def resolve_drum_preset(kit: str) -> int:
 
 
 def _resolve_device(query: str, need_input: bool) -> int | None:
-    """Resolve a device name substring (or numeric index) to a PortAudio index."""
+    """Resolve a device name substring (or numeric index) to a PortAudio index.
+
+    PipeWire exposes extra client nodes whose names also contain "Scarlett"
+    (e.g. "Scarlett Solo (3rd Gen.) Input 2 Inst/Line"). Those go through the
+    PipeWire graph and can deliver silence, so direct ALSA ``(hw:x,y)`` devices
+    are strongly preferred and PipeWire/Split nodes are penalised.
+    """
     if query.isdigit():
         return int(query)
+
+    best: tuple[int, int] | None = None  # (score, index)
     for idx, dev in enumerate(sd.query_devices()):
-        if query.lower() not in dev["name"].lower():
+        name = dev["name"]
+        if query.lower() not in name.lower():
             continue
-        if need_input and dev["max_input_channels"] > 0:
-            return idx
-        if not need_input and dev["max_output_channels"] > 0:
-            return idx
-    return None
+        if need_input and dev["max_input_channels"] <= 0:
+            continue
+        if not need_input and dev["max_output_channels"] <= 0:
+            continue
+
+        score = 0
+        if "(hw:" in name:
+            score += 100
+        if "pipewire" in name.lower() or "split" in name.lower():
+            score -= 50
+        if name.lower().startswith(query.lower()):
+            score += 10
+        if best is None or score > best[0]:
+            best = (score, idx)
+
+    return best[1] if best is not None else None
 
 
 class InProcessCyberJamSession:

@@ -623,16 +623,8 @@ wired into the view. Full suite **200 green**; `typecheck` + `build` green.
 > integration Tasks 9–10, and Extension track E). Live telemetry/audio/MIDI require the engine;
 > see the **engine-less** option below to exercise the UI without it.
 
-Start the Python engine with the virtual audio source so the browser can capture live audio (on the
-CachyOS install machine; Fish shell):
-
-```fish
-# Terminal 1 — engine with the visual audio virtual source
-pw-jack .venv/bin/python run_session.py --pipewire-loopback
-```
-
-Start the React visualizer dev server (Fish shell on the CachyOS workstation; use the Bash/
-PowerShell equivalent elsewhere):
+Start the React visualizer dev server on the installation workstation (Terminal 1; Fish shell; use
+the Bash/PowerShell equivalent elsewhere):
 
 ```fish
 # Terminal 2 — React visualizer (dev server)
@@ -640,6 +632,13 @@ cd visualizer
 npm install
 npm run dev
 ```
+
+The dev script starts the loopback-only session-control service on `127.0.0.1:8765` alongside Vite.
+Pressing **Start Session** starts the PipeWire virtual source using
+`scripts/setup_pipewire_loopback.sh`, then launches `./start_cyberjam.sh` (the supported in-process
+pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). The virtual
+source and engine are intentionally left running if browser windows close. Stop both with
+`curl -X POST http://127.0.0.1:8765/stop`; stopping the dev server stops only the control service.
 
 **Two-screen workflow:** Vite prints a local URL (default `http://localhost:5173`). Open the root
 URL (`http://localhost:5173/`) once — the launcher **automatically opens two windows**, the Menu

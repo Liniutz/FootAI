@@ -63,6 +63,20 @@ automatically; without it, the algorithmic generator is used instead.
 pw-jack .venv/bin/python run_session.py --pipewire-loopback
 ```
 
+## 3b. Visualizer-Controlled Session Start
+
+`npm run dev` in `visualizer/` starts Vite and the loopback-only session-control service together.
+The Menu's **Start Session** button starts `scripts/setup_pipewire_loopback.sh` and
+`start_cyberjam.sh` through that service. Both the virtual source and engine are intentionally left
+running when browser windows close. To stop them, use another terminal:
+
+```fish
+curl -X POST http://127.0.0.1:8765/stop
+```
+
+The service is bound to loopback only and must run on the same workstation as the Python engine and
+PipeWire audio devices. Do not expose port `8765` to the network.
+
 ## 4. CLI Flags
 
 | Flag | Default | Description |

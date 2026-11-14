@@ -16,7 +16,7 @@ from .config import MusicalState, SessionConfig
 logger = logging.getLogger(__name__)
 
 
-class WebSocketTelemetryServer:
+class VisualTelemetryServer:
     def __init__(self, config: SessionConfig, state: MusicalState) -> None:
         self.config = config
         self.state = state
@@ -95,3 +95,7 @@ class WebSocketTelemetryServer:
             await self.runner.cleanup()
             self.runner = None
         logger.info("WebSocket telemetry server stopped")
+
+
+# Backward-compatible name used by the in-process workstation launcher.
+WebSocketTelemetryServer = VisualTelemetryServer
