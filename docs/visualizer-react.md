@@ -3,7 +3,7 @@
 The **CyberJam Visualizer** is a standalone React web application for the installation. It
 consumes the existing (unmodified) Python engine APIs and provides two features:
 
-1. **Menu** — choose the song and the instruments for the session; starting Freestyle automatically begins a two-bar (eight-measure) tempo-capture before the backing band starts.
+1. **Menu** — choose the song and the instruments for the session; starting Freestyle automatically begins a four-bar (sixteen-measure) tempo-capture before the backing band starts.
 2. **Visualizer** — render the guitar notes you play (from DSP telemetry) and a live waveform
    of the audio, while the DAW/speakers produce the ML accompaniment audio.
 

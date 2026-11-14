@@ -104,7 +104,8 @@ LEAD_ENABLED = os.environ.get("CYBERJAM_LEAD", "0") == "1"
 
 # Demo mode: wait for the player, capture a short window, then lock BPM + key.
 DEMO_MODE = os.environ.get("CYBERJAM_DEMO", "0") == "1"
-DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "2"))
+# Freestyle defaults to twice the original two-bar capture (four bars total).
+DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "4"))
 
 # Sound selection. GeneralUser GS ships several kits in percussion bank 128;
 # "power" is the rock kit used by default.
@@ -446,7 +447,7 @@ class InProcessCyberJamSession:
                 notes=[],
                 current_step=0,
                 demo_phase=self._demo_phase,
-                demo_prompt=("Play 2 bars (8 measures) to set the groove." if self._demo_mode else self.state.snapshot().get("demo_prompt", "")),
+                demo_prompt=(f"Play {DEMO_BARS} bars ({DEMO_BARS * 4} measures) to set the groove." if self._demo_mode else self.state.snapshot().get("demo_prompt", "")),
             )
         except Exception:
             pass

@@ -68,7 +68,7 @@ pw-jack .venv/bin/python run_session.py --pipewire-loopback
 `npm run dev` in `visualizer/` starts Vite and the loopback-only session-control service together.
 The Menu's **Start Session** button starts `scripts/setup_pipewire_loopback.sh` and
 `start_cyberjam.sh` through that service. Both the virtual source and engine are intentionally left
-running when browser windows close. Selecting **Freestyle** automatically prompts for two bars (eight measures), captures the guitar groove, then locks the median detected tempo and starts the backing band. Use **Stop Session** in the Menu to gracefully stop the engine,
+running when browser windows close. Selecting **Freestyle** automatically prompts for four bars (sixteen measures), captures the guitar groove, then locks the median detected tempo and starts the backing band. Use **Stop Session** in the Menu to gracefully stop the engine,
 RNN worker, and virtual source together. The service is bound to loopback only and must run on the same workstation as the Python engine and
 PipeWire audio devices. Do not expose port `8765` to the network.
 

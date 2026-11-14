@@ -91,8 +91,8 @@ export function SessionOverlay() {
             role="dialog"
           >
             <span className="freestyle-prompt__eyebrow">Freestyle · groove setup</span>
-            <h2>Play 2 bars</h2>
-            <p>Play eight measures at a comfortable pace. The band will lock to your groove, then you can follow the drums.</p>
+            <h2>Play 4 bars</h2>
+            <p>Play sixteen measures at a comfortable pace. The band will lock to your groove, then you can follow the drums.</p>
             {demoPhase === "capture" && demoPrompt && (
               <p className="freestyle-prompt__status" data-testid="freestyle-prompt-status">{demoPrompt}</p>
             )}

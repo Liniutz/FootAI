@@ -24,7 +24,7 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
   "spectral_centroid_hz": 1420.55,
   "onset": true,
   "demo_phase": "capture",
-  "demo_prompt": "Play 2 bars (8 measures) — I'm learning your groove."
+  "demo_prompt": "Play 4 bars (16 measures) — I'm learning your groove."
 }
 ```
 
@@ -47,7 +47,7 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 | `band_active` | `bool` | `true` while the backing band is playing; set `false` after `CYBERJAM_SILENCE_TIMEOUT` (default `6s`) without guitar input |
 | `pitch_classes` | `int[]` | Rolling histogram (last 64 detections) of pitch classes `0`–`11`, used to infer key and major/minor mode |
 | `demo_phase` | `string` | Guided capture state: `"wait"`, `"capture"` or `"locked"` (empty when off); automatically enabled by the Menu's Freestyle session |
-| `demo_prompt` | `string` | Human-readable prompt/status; Freestyle requests 2 bars (8 measures), then reports the locked tempo and key |
+| `demo_prompt` | `string` | Human-readable prompt/status; Freestyle requests 4 bars (16 measures) by default, then reports the locked tempo and key |
 
 > The bundled live session (`scripts/run_inprocess_session.py`) keeps the backing band
 > completely silent until **both** `detected_bpm` and `detected_key` are `true`, then locks
