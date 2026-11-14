@@ -309,28 +309,28 @@ class AudioDSPEngine:
                     self._total_beats = 0.0
                     self._last_beat_tick_wall = now
 
-                # Onset flag + aubio native tempo or guitar tempo tracker
+                # Onsets from aubio when available, tempo always from the
+                # guitar-optimised tracker: aubio's tempo locks onto the double
+                # tempo on slow riffs (e.g. Nothing Else Matters at ~69 BPM).
                 if self._use_aubio:
                     is_onset = bool(self._onset(samples))
-                    if is_onset:
-                        self._last_onset_wall = now
-                        self._onset_count += 1
+
+                flux_onset, tracker_bpm = self._flux_onset_and_bpm(mag, rms, now)
+                is_onset = is_onset or flux_onset
+                if is_onset:
+                    self._last_onset_wall = now
+                    self._onset_count += 1
+
+                if tracker_bpm is not None:
+                    bpm = tracker_bpm
+                elif self._smoothed_bpm is not None:
+                    bpm = self._smoothed_bpm
+                elif self._use_aubio:
+                    # Cold start before the tracker has enough material.
                     is_beat = bool(self._tempo(samples))
                     raw_tbpm = float(self._tempo.get_bpm())
                     if is_beat and 40.0 <= raw_tbpm <= 240.0:
-                        if self._smoothed_bpm is None:
-                            self._smoothed_bpm = raw_tbpm
-                        else:
-                            self._smoothed_bpm = 0.7 * self._smoothed_bpm + 0.3 * raw_tbpm
-                    if self._smoothed_bpm is not None:
-                        bpm = self._smoothed_bpm
-                else:
-                    flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
-                    is_onset = flux_onset
-                    if is_onset:
-                        self._onset_count += 1
-                    if bpm is None and self._tempo_tracker.bpm is not None:
-                        bpm = self._tempo_tracker.bpm
+                        bpm = raw_tbpm
 
                 # Pitch & key estimation with median smoothing to prevent octave/jitter jumps
                 detected_hz = self._estimate_pitch(samples, frame_counter)
