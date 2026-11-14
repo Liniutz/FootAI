@@ -18,6 +18,7 @@ import { AdrianStage } from "../visualizer/AdrianStage";
 import { Fretboard } from "../visualizer/Fretboard";
 import { RockMeter, ScoreBoard } from "../visualizer/GuitarHeroHud";
 import { SessionOverlay } from "../visualizer/SessionOverlay";
+import { BeginnerCoach } from "../visualizer/BeginnerCoach";
 import { StatusBar } from "../components/StatusBar";
 import "../visualizer/visualizer.css";
 
@@ -30,6 +31,7 @@ export function VisualizerView() {
 
   const audioStatus = useVisualizerStore((s) => s.audioStatus);
   const midiStatus = useVisualizerStore((s) => s.midiStatus);
+  const mode = useVisualizerStore((s) => s.selection.mode);
 
   return (
     <section aria-label="Visualizer" className="view view--visualizer gh">
@@ -56,6 +58,8 @@ export function VisualizerView() {
       </StatusBar>
 
       <SessionOverlay />
+
+      {mode === "beginner" && <BeginnerCoach />}
 
       <div className="gh-stage">
         <RockMeter />
