@@ -118,6 +118,8 @@ class AudioDSPEngine:
         hop = config.block_size
         win = hop * 4  # 2048 samples (~42.6ms at 48kHz)
         self._use_aubio = aubio is not None
+        self._pitch_history: deque[float] = deque(maxlen=5)
+        self._pc_history: deque[int] = deque(maxlen=64)
         if self._use_aubio:
             self._onset = aubio.onset("default", win, hop, config.sample_rate)
             self._onset.set_threshold(config.onset_threshold)
@@ -126,7 +128,7 @@ class AudioDSPEngine:
             self._tempo = aubio.tempo("default", win, hop, config.sample_rate)
             self._tempo.set_silence(config.silence_db)
 
-            self._aubio_pitch = aubio.pitch("yinfft", win, hop, config.sample_rate)
+            self._aubio_pitch = aubio.pitch("yin", win, hop, config.sample_rate)
             self._aubio_pitch.set_unit("Hz")
             self._aubio_pitch.set_silence(config.silence_db)
         else:
@@ -153,11 +155,13 @@ class AudioDSPEngine:
         self._tempo_tracker = GuitarTempoTracker(fps=self._fps)
         self._last_onset_wall: float = 0.0
         self._smoothed_bpm: float | None = None
+        self._latched_key: str | None = None
         self._song_started: bool = False
         self._total_beats: float = 0.0
         self._last_beat_tick_wall: float = 0.0
         self._xrun_count: int = 0  # written by the audio callback, logged by the DSP worker
         self._xrun_logged: int = 0
+        self._onset_count: int = 0
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
         self._hann = np.hanning(hop).astype(np.float32)
@@ -170,16 +174,7 @@ class AudioDSPEngine:
 
     def start(self) -> None:
         """Start the PipeWire loopback (if enabled), DSP worker thread, and audio stream."""
-        if self._loopback is not None:
-            self._loopback.start()
-
-        self._stop_event.clear()
-        self._worker_thread = threading.Thread(
-            target=self._dsp_worker_loop,
-            name="CyberJamDSPWorker",
-            daemon=True,
-        )
-        self._worker_thread.start()
+        self.start_processing()
 
         device = _select_audio_device(self.config)
         self._stream = sd.InputStream(
@@ -200,6 +195,50 @@ class AudioDSPEngine:
             self.config.udp_port,
             self._pitch_backend,
         )
+
+    def start_processing(self) -> None:
+        """Start only the DSP worker thread (no capture stream).
+
+        Use this when audio is captured externally (e.g. a duplex passthrough stream)
+        and pushed in via :meth:`feed_audio`.
+        """
+        if self._loopback is not None:
+            self._loopback.start()
+
+        self._stop_event.clear()
+        if self._worker_thread is not None and self._worker_thread.is_alive():
+            return
+        self._worker_thread = threading.Thread(
+            target=self._dsp_worker_loop,
+            name="CyberJamDSPWorker",
+            daemon=True,
+        )
+        self._worker_thread.start()
+        logger.info("Audio DSP worker started (external audio feed mode).")
+
+    def feed_audio(self, samples: np.ndarray) -> None:
+        """Feed an externally captured mono float32 block into the DSP pipeline.
+
+        Mirrors the real-time callback: broadcasts the raw PCM over UDP and enqueues
+        the block for the DSP worker. Safe to call from an audio callback thread.
+        """
+        mono = np.ascontiguousarray(samples, dtype=np.float32)
+        if mono.ndim > 1:
+            mono = np.ascontiguousarray(mono[:, 0], dtype=np.float32)
+
+        try:
+            self._udp_sock.sendto(mono.tobytes(), self._udp_addr)
+        except OSError:
+            pass
+
+        try:
+            self._audio_queue.put_nowait(mono.copy())
+        except queue.Full:
+            try:
+                self._audio_queue.get_nowait()
+                self._audio_queue.put_nowait(mono.copy())
+            except queue.Empty:
+                pass
 
     def stop(self) -> None:
         """Stop the audio stream, DSP worker, UDP socket, and optional loopback."""
@@ -236,23 +275,7 @@ class AudioDSPEngine:
         if status:
             self._xrun_count += 1  # plain int bump; the DSP worker reports it
 
-        mono = np.ascontiguousarray(indata[:, 0], dtype=np.float32)
-
-        # 1. Broadcast raw float32 PCM chunk to Visuals over UDP
-        try:
-            self._udp_sock.sendto(mono.tobytes(), self._udp_addr)
-        except OSError:
-            pass
-
-        # 2. Enqueue for DSP worker (drop oldest if queue is full)
-        try:
-            self._audio_queue.put_nowait(mono.copy())
-        except queue.Full:
-            try:
-                self._audio_queue.get_nowait()
-                self._audio_queue.put_nowait(mono.copy())
-            except queue.Empty:
-                pass
+        self.feed_audio(indata)
 
     def _dsp_worker_loop(self) -> None:
         """Dedicated DSP thread for onset, BPM, RMS, spectral centroid, and pitch/key."""
@@ -291,6 +314,7 @@ class AudioDSPEngine:
                     is_onset = bool(self._onset(samples))
                     if is_onset:
                         self._last_onset_wall = now
+                        self._onset_count += 1
                     is_beat = bool(self._tempo(samples))
                     raw_tbpm = float(self._tempo.get_bpm())
                     if is_beat and 40.0 <= raw_tbpm <= 240.0:
@@ -298,16 +322,26 @@ class AudioDSPEngine:
                             self._smoothed_bpm = raw_tbpm
                         else:
                             self._smoothed_bpm = 0.7 * self._smoothed_bpm + 0.3 * raw_tbpm
+                    if self._smoothed_bpm is not None:
                         bpm = self._smoothed_bpm
                 else:
                     flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
                     is_onset = flux_onset
+                    if is_onset:
+                        self._onset_count += 1
+                    if bpm is None and self._tempo_tracker.bpm is not None:
+                        bpm = self._tempo_tracker.bpm
 
-                # Pitch & key estimation
+                # Pitch & key estimation with median smoothing to prevent octave/jitter jumps
                 detected_hz = self._estimate_pitch(samples, frame_counter)
                 if 70.0 <= detected_hz <= 1400.0:
-                    pitch_hz = detected_hz
-                    midi_note, note_str, key_str = hz_to_note_info(detected_hz)
+                    self._pitch_history.append(detected_hz)
+                    smoothed_hz = float(np.median(self._pitch_history))
+                    pitch_hz = smoothed_hz
+                    midi_note, note_str, key_str = hz_to_note_info(smoothed_hz)
+                    if key_str:
+                        self._latched_key = key_str
+                        self._pc_history.append(midi_note % 12)
             else:
                 self._prev_log_mag = None
                 silent_for = now - self._last_active_wall
@@ -317,6 +351,8 @@ class AudioDSPEngine:
                     self._total_beats = 0.0
                     self._tempo_tracker.reset()
                     self._smoothed_bpm = None
+                    self._latched_key = None
+                    self._pc_history.clear()
                     self._flux_history.clear()
                     reset_bpm = True
                 elif self._tempo_tracker.bpm is not None or self._song_started:
@@ -355,10 +391,14 @@ class AudioDSPEngine:
                 pitch_hz=pitch_hz,
                 note=note_str,
                 midi_note=midi_note,
-                key=key_str,
+                key=key_str if key_str else self._latched_key,
                 rms=rms,
                 spectral_centroid_hz=centroid,
                 onset=is_onset,
+                detected_bpm=(self._smoothed_bpm is not None or self._tempo_tracker.bpm is not None),
+                detected_key=(self._latched_key is not None),
+                pitch_classes=list(self._pc_history),
+                onset_count=self._onset_count,
             )
             frame_counter += 1
             if self._xrun_count != self._xrun_logged:

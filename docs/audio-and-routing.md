@@ -13,11 +13,15 @@
   * Accuracy on synthetic strum envelopes (quarters/8ths/16ths/folk, jitter + noise): `~77%` exact (±4%) and `~91%` within a factor of 2 over `75–140 BPM`; end-to-end on synthesized Karplus-Strong chord strums it locked `80/100/120 BPM` exactly (one `80 BPM` 16th-note pattern locked at the double tempo `160`).
 * **Pitch & Key Estimation:**
   * `auto` (default): `aubio` if the C-extension imports, otherwise `librosa`. The active backend is logged at startup.
-  * `aubio`: `aubio.pitch("yinfft", ...)` with confidence gate `>= 0.65` (falls back to `librosa` with a warning if `aubio` is missing).
+  * `aubio`: `aubio.pitch("yin", ...)` with confidence gate `>= 0.65` (falls back to `librosa` with a warning if `aubio` is missing). `yin` is used instead of `yinfft` because `yinfft` reports a constant `0.0` confidence in the packaged aubio build, which silently blocked every key detection.
   * `librosa`: `librosa.yin(..., fmin=75.0, fmax=1400.0)` over a 2048-sample rolling buffer.
   * `crepe`: Optional neural pitch tracker (requires `crepe` + `tensorflow`).
 * **Spectral Centroid & RMS:** Computed per block via Hann-windowed `np.fft.rfft` and linear RMS (`noise gate: rms > 10^(--noise-gate-db/20)`, default `-42 dBFS ≈ 0.008`).
 * **Real-time safety:** `_audio_callback` never logs or blocks; xruns are counted with a plain integer and reported by the DSP worker at debug level.
+* **External audio feed:** `AudioDSPEngine.start_processing()` starts only the DSP worker (no capture stream) and `feed_audio(mono_block)` pushes externally captured float32 blocks into the same path (UDP broadcast + DSP queue). This is what the duplex guitar passthrough uses, so a single stream can both monitor the guitar and analyse it.
+* **Live session routing (`scripts/run_inprocess_session.py`):** capture and playback are opened as *separate* `sd.InputStream` / `sd.OutputStream` objects (a duplex `sd.Stream` produced no output on this PipeWire setup). Device names are resolved to PortAudio indices by substring, because `"hw:2,0"` is parsed by PortAudio as `name="hw:2", hostapi="0"` and can silently land on the wrong device. Overrides: `CYBERJAM_INPUT_DEVICE` (default `Scarlett`), `CYBERJAM_OUTPUT_DEVICES` (comma list, default `default,Scarlett`), `CYBERJAM_TEST_TONE=0` to skip the startup beep.
+* **Mix balance:** `CYBERJAM_GUITAR_GAIN` (default `2.0`, applied to the passthrough block with hard clipping at ±1.0) and `CYBERJAM_BAND_GAIN` (default `0.45`, applied through `fluid_synth_set_gain` via `ctypes` because this pyfluidsynth build exposes no gain setter).
+* **Instruments & drum kit:** bass uses GM program `32` (Acoustic/upright, jazzy and round). Drums are selected with `--drum-kit NAME` (GeneralUser GS percussion bank 128): `power` (rock, default), `standard`, `standard2`, `standard3`, `room`, `jazz`, `brush`, `electronic`, `808`, `dance`, `orchestral`, `sfx`, or a numeric preset. `--drum-soundfont PATH --drum-preset N` assigns a dedicated kit `.sf2` to channel 10 instead. `--soundfont PATH` overrides the main `.sf2` (bass/lead). `--list-drum-kits` prints what the loaded soundfont offers. Env equivalents: `CYBERJAM_DRUM_KIT`, `CYBERJAM_DRUM_SOUNDFONT`, `CYBERJAM_DRUM_PRESET`, `CYBERJAM_SOUNDFONT`.
 
 ---
 

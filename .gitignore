@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+.venv-magenta/
 venv/
 *.egg-info/
 dist/
@@ -11,3 +12,10 @@ build/
 # Logs & OS
 *.log
 .DS_Store
+
+# Audio test artifacts
+*.wav
+
+# Downloaded model bundles (recreate with scripts/download_default_models.sh)
+models/pretrained/
+models/groovae/

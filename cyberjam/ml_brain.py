@@ -1,218 +1,195 @@
-"""ML Generator Stubs ("The Brain") and asynchronous step sequencer.
-
-This module isolates the DrumRNN and MelodyRNN integration boundary.
-Replace the bodies of `generate_drum_midi` and `generate_bass_midi` with
-actual model inference when the trained checkpoints are ready.
+"""
+ML Generator ("The Brain") and asynchronous step sequencer conditioned on live guitar DSP.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import threading
 import time
 
 from .config import MusicalState, SessionConfig
+from .generative import (
+    GM_CLOSED_HAT,
+    GM_CRASH,
+    GM_HIGH_TOM,
+    GM_KICK,
+    GM_LOW_TOM,
+    GM_MID_TOM,
+    GM_OPEN_HAT,
+    GM_SNARE,
+    LiveContext,
+    LiveGrooveGenerator,
+    MidiStepEvent,
+    infer_key,
+)
 from .midi_egress import MidiEgress
 
 logger = logging.getLogger(__name__)
 
-# General MIDI Drum Map (Channel 10 / index 9)
-GM_KICK = 36
-GM_SNARE = 38
-GM_CLOSED_HAT = 42
-
-# Pitch class to MIDI note in octave 2 (C2 = 36 .. B2 = 47)
 KEY_TO_BASS_MIDI: dict[str, int] = {
-    "C": 36,
-    "C#": 37,
-    "D": 38,
-    "D#": 39,
-    "E": 40,
-    "F": 41,
-    "F#": 42,
-    "G": 43,
-    "G#": 44,
-    "A": 45,
-    "A#": 46,
-    "B": 47,
+    "C": 36, "C#": 37, "D": 38, "D#": 39, "E": 40, "F": 41,
+    "F#": 42, "G": 43, "G#": 44, "A": 45, "A#": 46, "B": 47,
 }
 
-
-@dataclass(frozen=True)
-class MidiStepEvent:
-    """A single quantized MIDI event within a 16-step (4/4) bar."""
-
-    step: int             # 0..15 (16th-note index in a 4/4 bar)
-    note: int             # MIDI note number (0..127)
-    velocity: int         # MIDI velocity (1..127)
-    duration_steps: int   # Note length in 16th-note steps
+# Minor-key rock progression (i - VI - III - VII), one bar each.
+BASS_PROGRESSION = (0, 8, 3, 10)
 
 
-def generate_drum_midi(bpm: float) -> list[MidiStepEvent]:
-    """ML STUB (DrumRNN): Generate a 1-bar (16-step) 4/4 drum pattern.
+def generate_drum_midi(bpm: float, bar: int = 0) -> list[MidiStepEvent]:
+    """Four-bar rock groove: 8th-note hats, kick/snare backbeat, crash + fill.
 
-    Args:
-        bpm: Current detected tempo in beats per minute.
-
-    Returns:
-        List of quantized `MidiStepEvent` objects for a 4/4 bar:
-        - Kick (36) on beats 1 and 3 (steps 0, 8)
-        - Snare (38) on beats 2 and 4 (steps 4, 12)
-        - Closed Hi-Hat (42) on 8th-note subdivisions
+    ``bar`` cycles 0-3 so crashes land on the downbeat of every 4th bar and the
+    last bar ends with a tom fill, instead of looping one static bar forever.
     """
-    _ = bpm  # Reserved for tempo-conditioned DrumRNN inference
+    _ = bpm
     events: list[MidiStepEvent] = []
 
-    for step in range(16):
-        if step in (0, 8):
-            events.append(MidiStepEvent(step=step, note=GM_KICK, velocity=115, duration_steps=2))
-        if step in (4, 12):
-            events.append(MidiStepEvent(step=step, note=GM_SNARE, velocity=105, duration_steps=2))
-        if step % 2 == 0:
-            vel = 85 if step % 4 == 0 else 65
-            events.append(MidiStepEvent(step=step, note=GM_CLOSED_HAT, velocity=vel, duration_steps=1))
+    # Closed hi-hats on every 8th, accenting the beat.
+    for step in range(0, 16, 2):
+        events.append(MidiStepEvent(step, GM_CLOSED_HAT, 98 if step % 4 == 0 else 76))
+
+    # Kick pattern driving the groove.
+    for step, vel in ((0, 124), (6, 106), (8, 120), (11, 98)):
+        events.append(MidiStepEvent(step, GM_KICK, vel))
+
+    # Snare backbeat on 2 and 4.
+    events.append(MidiStepEvent(4, GM_SNARE, 118))
+    events.append(MidiStepEvent(12, GM_SNARE, 122))
+
+    # Ghost note for a live feel.
+    events.append(MidiStepEvent(7, GM_SNARE, 38))
+
+    # Open hat lifts the end of the bar.
+    events.append(MidiStepEvent(14, GM_OPEN_HAT, 86))
+
+    # Crash on the downbeat of each 4-bar phrase.
+    if bar % 4 == 0:
+        events.append(MidiStepEvent(0, GM_CRASH, 112))
+
+    # Tom fill closing the phrase.
+    if bar % 4 == 3:
+        fill = ((12, GM_SNARE), (13, GM_HIGH_TOM), (14, GM_MID_TOM), (15, GM_LOW_TOM))
+        for step, note in fill:
+            events.append(MidiStepEvent(step, note, 100 + (step - 12) * 6))
 
     return events
 
 
-def generate_bass_midi(key: str, bpm: float) -> list[MidiStepEvent]:
-    """ML STUB (MelodyRNN): Generate a 1-bar (16-step) bassline in the detected key.
+def generate_bass_midi(key: str, bpm: float, bar: int = 0) -> list[MidiStepEvent]:
+    """Walking rock bass line that follows a 4-bar i-VI-III-VII progression."""
+    _ = bpm
+    root = KEY_TO_BASS_MIDI.get(key.upper(), 40)
+    chord_root = root + BASS_PROGRESSION[bar % len(BASS_PROGRESSION)]
 
-    Args:
-        key: Detected musical pitch class (e.g., "E", "A", "C#").
-        bpm: Current detected tempo in beats per minute.
-
-    Returns:
-        List of quantized `MidiStepEvent` objects forming a root/fifth/octave groove.
-    """
-    _ = bpm  # Reserved for tempo-conditioned MelodyRNN inference
-    root = KEY_TO_BASS_MIDI.get(key, 40)  # Default to E2 (40)
-    fifth = root + 7
-    octave = root + 12
-
-    return [
-        MidiStepEvent(step=0, note=root, velocity=110, duration_steps=3),
-        MidiStepEvent(step=4, note=root, velocity=95, duration_steps=2),
-        MidiStepEvent(step=6, note=fifth, velocity=90, duration_steps=2),
-        MidiStepEvent(step=8, note=root, velocity=105, duration_steps=3),
-        MidiStepEvent(step=12, note=octave, velocity=95, duration_steps=2),
-        MidiStepEvent(step=14, note=fifth, velocity=85, duration_steps=2),
-    ]
+    # (step, interval above chord root, velocity)
+    pattern = (
+        (0, 0, 120),
+        (3, 0, 92),
+        (6, 7, 110),   # fifth
+        (8, 12, 112),  # octave
+        (11, 10, 100), # flat seventh
+        (14, 5, 104),  # fourth, leading back
+    )
+    return [MidiStepEvent(step, chord_root + interval, vel) for step, interval, vel in pattern]
 
 
 class MLSequencer:
-    """Dedicated background thread that steps through ML-generated bars without blocking audio."""
+    """Asynchronous step sequencer pulling live guitar DSP and feeding DrumRNN & MelodyRNN."""
 
-    def __init__(self, config: SessionConfig, state: MusicalState, midi: MidiEgress) -> None:
+    def __init__(self, config: SessionConfig, state: MusicalState, egress: MidiEgress) -> None:
         self.config = config
         self.state = state
-        self.midi = midi
-        self._stop_event = threading.Event()
+        self.egress = egress
         self._thread: threading.Thread | None = None
+        self._stop_event = threading.Event()
+        self._last_valid_key = getattr(config, "default_key", "E")
+        self._generator = LiveGrooveGenerator(creativity=float(getattr(config, "creativity", 0.5)))
+        self._bar_events: tuple[list[MidiStepEvent], list[MidiStepEvent]] = ([], [])
 
     def start(self) -> None:
-        """Launch the asynchronous ML MIDI sequencer thread."""
+        if self._thread and self._thread.is_alive():
+            return
         self._stop_event.clear()
-        self._thread = threading.Thread(
-            target=self._run_loop,
-            name="CyberJamMLSequencer",
-            daemon=True,
-        )
+        self._thread = threading.Thread(target=self._run_loop, daemon=True)
         self._thread.start()
-        logger.info("ML Sequencer started (Drum ch=%d, Bass ch=%d)", self.config.drum_channel + 1, self.config.bass_channel + 1)
+        logger.info("Live-conditioned ML Sequencer started (Drum ch=10, Bass ch=2)")
 
     def stop(self) -> None:
-        """Stop the ML sequencer thread cleanly."""
         self._stop_event.set()
-        if self._thread is not None:
-            self._thread.join(timeout=2.0)
+        if self._thread:
+            self._thread.join(timeout=1.0)
             self._thread = None
-        logger.info("ML Sequencer stopped.")
+        logger.info("Live-conditioned ML Sequencer stopped")
 
     def _run_loop(self) -> None:
         step = 0
-        drum_pattern = generate_drum_midi(self.config.default_bpm)
-        bass_pattern = generate_bass_midi(self.config.default_key, self.config.default_bpm)
+        bar = 0
+        held_bass: list[tuple[int, float]] = []
+        while not self._stop_event.is_set():
+            snapshot = self.state.snapshot()
 
-        # Track active note-offs: step_to_release -> list of (channel, note)
-        pending_note_offs: dict[int, list[tuple[int, int]]] = {}
-        next_step_time = time.perf_counter()
-
-        try:
-            while not self._stop_event.is_set():
-                try:
-                    step, next_step_time, drum_pattern, bass_pattern = self._tick(
-                        step, next_step_time, drum_pattern, bass_pattern, pending_note_offs
-                    )
-                except Exception:
-                    logger.exception("ML sequencer step failed; continuing")
-                    self._stop_event.wait(timeout=0.05)
-                    step = (step + 1) % 16
-                    next_step_time = time.perf_counter()
-        finally:
-            self._flush_pending(pending_note_offs)
-
-    def _flush_pending(self, pending_note_offs: dict[int, list[tuple[int, int]]]) -> None:
-        """Release every note that is still sounding (never leaves stuck MIDI notes)."""
-        for notes in pending_note_offs.values():
-            for ch, note in notes:
-                try:
-                    self.midi.note_off(ch, note)
-                except Exception:
-                    logger.exception("Failed to flush note_off (ch=%d note=%d)", ch + 1, note)
-        pending_note_offs.clear()
-
-    def _tick(
-        self,
-        step: int,
-        next_step_time: float,
-        drum_pattern: list[MidiStepEvent],
-        bass_pattern: list[MidiStepEvent],
-        pending_note_offs: dict[int, list[tuple[int, int]]],
-    ) -> tuple[int, float, list[MidiStepEvent], list[MidiStepEvent]]:
-        snap = self.state.snapshot()
-        raw_bpm = float(snap["bpm"])  # type: ignore[arg-type]
-        bpm = raw_bpm if raw_bpm > 0.0 else self.config.default_bpm
-        pitch_info = snap["detected_pitch"]  # type: ignore[assignment]
-        raw_key = str(pitch_info["key"])  # type: ignore[index]
-        key = raw_key if raw_key != "N/A" else self.config.default_key
-
-        # Refresh bar patterns at the start of every 4/4 bar
-        if step == 0:
-            drum_pattern = generate_drum_midi(bpm)
-            bass_pattern = generate_bass_midi(key, bpm)
-
-        # 1. Release any notes scheduled to end on this step
-        for ch, note in pending_note_offs.pop(step, []):
-            self.midi.note_off(ch, note)
-
-        # 2. Trigger drum & bass notes for this step
-        self._trigger_step_events(step, drum_pattern, self.config.drum_channel, pending_note_offs)
-        self._trigger_step_events(step, bass_pattern, self.config.bass_channel, pending_note_offs)
-
-        # 3. Drift-compensated 16th-note sleep
-        sixteenth_sec = 60.0 / max(40.0, min(240.0, bpm)) / 4.0
-        next_step_time += sixteenth_sec
-        sleep_for = next_step_time - time.perf_counter()
-        if sleep_for > 0:
-            self._stop_event.wait(timeout=sleep_for)
-        else:
-            # Resync clock if thread was stalled
-            next_step_time = time.perf_counter()
-
-        return (step + 1) % 16, next_step_time, drum_pattern, bass_pattern
-
-    def _trigger_step_events(
-        self,
-        step: int,
-        events: list[MidiStepEvent],
-        channel: int,
-        pending_note_offs: dict[int, list[tuple[int, int]]],
-    ) -> None:
-        for ev in events:
-            if ev.step != step:
+            # The session owns the arm/stop decision (BPM+key lock, silence timeout).
+            if not snapshot.get("band_active", False):
+                for note, _started in list(held_bass):
+                    self.egress.note_off(channel=2, note=note)
+                held_bass.clear()
+                self._stop_event.wait(0.05)
                 continue
-            self.midi.note_on(channel, ev.note, ev.velocity)
-            release_step = (step + max(1, ev.duration_steps)) % 16
-            pending_note_offs.setdefault(release_step, []).append((channel, ev.note))
+
+            raw_bpm = snapshot.get("bpm")
+            bpm = float(raw_bpm) if raw_bpm is not None else 120.0
+            if bpm <= 0:
+                bpm = 120.0
+
+            key_str = str(snapshot.get("key", "E Minor"))
+            root_key = key_str.split()[0] if key_str else self._last_valid_key
+            self._last_valid_key = root_key
+
+            step_dur = 60.0 / bpm / 4.0
+            now = time.monotonic()
+
+            # Release bass notes so they never pile up into mud.
+            for note, started in list(held_bass):
+                if now - started >= step_dur * 1.8:
+                    self.egress.note_off(channel=2, note=note)
+                    held_bass.remove((note, started))
+
+            # Generate a fresh bar whenever the step counter wraps.
+            if step == 0:
+                root_pc, mode = infer_key(
+                    tuple(snapshot.get("pitch_classes") or ()),
+                    fallback_pc=KEY_TO_BASS_MIDI.get(root_key.upper(), 40) % 12,
+                )
+                ctx = LiveContext(
+                    bpm=bpm,
+                    root_pc=root_pc,
+                    mode=mode,
+                    rms=float(snapshot.get("rms") or 0.0),
+                    centroid=float(snapshot.get("spectral_centroid_hz") or 0.0),
+                    pitch_classes=tuple(snapshot.get("pitch_classes") or ()),
+                    creativity=self._generator.creativity,
+                )
+                self._bar_events = self._generator.next_bar(ctx)
+                logger.debug("New bar: %s", self._generator.describe(ctx))
+
+            drums, bass = self._bar_events
+
+            for ev in drums:
+                if ev.step == step:
+                    self.egress.note_on(channel=10, note=ev.note, velocity=ev.velocity)
+
+            for ev in bass:
+                if ev.step == step:
+                    self.egress.note_on(channel=2, note=ev.note, velocity=ev.velocity)
+                    held_bass.append((ev.note, now))
+
+            try:
+                self.state.update(current_step=step, active_root=root_key)
+            except Exception:
+                pass
+
+            step = (step + 1) % 16
+            if step == 0:
+                bar = (bar + 1) % 4
+            time.sleep(step_dur)
