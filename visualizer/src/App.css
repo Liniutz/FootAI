@@ -4,6 +4,19 @@
   min-height: 100%;
 }
 
+.app[data-route="visualizer"] {
+  height: 100vh;
+  min-height: 0;
+}
+
+.app[data-route="visualizer"] .app__main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
 /* --- Header: forged metal title --- */
 .app__header {
   display: flex;
@@ -37,7 +50,8 @@
 
 .app__main {
   flex: 1;
-  padding: 1.5rem;
+  min-height: 0;
+  padding: 1rem;
 }
 
 /* --- Launcher --- */
@@ -117,13 +131,140 @@
     0 2px 3px rgba(0, 0, 0, 0.8);
 }
 
+.view--menu.rocksmith {
+  width: min(100%, 1600px);
+  max-width: none;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: clamp(0.5rem, 1.4vw, 1.5rem);
+  color: #e8eef7;
+}
+
+.menu-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.menu-toolbar .rs-title {
+  font-size: clamp(2rem, 4vw, 4rem);
+}
+
+.menu-live-stats {
+  display: flex;
+  justify-content: center;
+  gap: clamp(2rem, 8vw, 9rem);
+  margin: 0.8rem 0 1rem;
+}
+
+.menu-live-stats > span {
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+}
+
+.menu-live-stats strong {
+  color: #fff;
+  font-family: var(--font-heading);
+  font-size: clamp(2.8rem, 7vw, 6rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.menu-live-stats small {
+  color: var(--g-400);
+  font-size: 0.85rem;
+  letter-spacing: 0.22em;
+}
+
+.menu-start {
+  position: fixed;
+  right: clamp(1rem, 3vw, 3rem);
+  bottom: clamp(1rem, 3vh, 2rem);
+  z-index: 20;
+  min-width: 11rem;
+  padding: 1rem 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #36d399;
+  color: #07110d;
+  font: 800 1.1rem var(--font-heading);
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  box-shadow: 0 0 2rem rgba(54, 211, 153, 0.25);
+}
+
+.menu-start:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.menu-actions-secondary {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 20;
+  display: flex;
+  gap: 1rem;
+}
+
+.menu-stop,
+.menu-open-tv {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.menu-stop:hover,
+.menu-open-tv:hover {
+  color: #ffffff;
+}
+
+.view--visualizer.gh--tv {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+  padding: clamp(0.5rem, 1.5vw, 1.5rem);
+}
+
+@media (max-width: 720px) {
+  .rs-columns { grid-template-columns: 1fr; }
+  .menu-toolbar { align-items: flex-start; }
+  .menu-live-stats { margin: 0.5rem 0; }
+  .beginner-coach { padding: 0.25rem 0; }
+  .menu-start { right: 0.75rem; bottom: 0.75rem; min-width: auto; padding: 0.8rem 1.2rem; }
+}
+
+@media (max-height: 760px) {
+  .view--menu.rocksmith { padding-block: 0.4rem; }
+  .menu-live-stats { margin: 0.35rem 0 0.55rem; }
+  .menu-live-stats strong { font-size: clamp(2rem, 5vh, 3.6rem); }
+  .rs-card { min-height: 5rem; padding: 0.6rem 0.8rem; }
+  .rs-hero { padding: 0.25rem 0; }
+  .beginner-coach { padding-block: 0; }
+}
+
+@media (min-width: 721px) {
+  .beginner-coach {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0.25rem 0;
+  }
+}
+
 /* --- Backstage status strip (was "debug-panel") --- */
 /* ---------------------------------------------------------------------------
    Rocksmith-style Menu
    --------------------------------------------------------------------------- */
 .view--menu.rocksmith {
   --rs-glow: #6ee7ff;
-  max-width: 1000px;
+  width: min(100%, 1600px);
+  max-width: none;
   margin: 0 auto;
   color: #e8eef7;
 }
@@ -185,16 +326,41 @@
 }
 
 /* Generic card base */
+.rs-panel {
+  border: 0;
+  background: transparent;
+}
+
+.rs-panel__heading {
+  margin-bottom: 0.5rem;
+  font-size: clamp(0.7rem, 1vw, 0.9rem);
+}
+
+.rs-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 3rem);
+}
+
+.rs-cards {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: clamp(0.5rem, 1.2vw, 1rem);
+}
+
 .rs-card {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 0.2rem;
+  flex: 1 1 12rem;
+  min-height: 7rem;
   padding: 1rem 1.1rem;
-  border: 1px solid #263247;
-  border-radius: 14px;
-  background: linear-gradient(145deg, #141c2b, #0e1420);
+  border: 0;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -223,22 +389,20 @@
 /* Focus ring (keyboard / gamepad / hover) */
 .rs-card.is-focused,
 .rs-start.is-focused {
-  border-color: var(--rs-glow);
-  box-shadow:
-    0 0 0 2px rgba(110, 231, 255, 0.35),
-    0 0 22px rgba(110, 231, 255, 0.25);
+  border-bottom-color: var(--rs-glow);
+  box-shadow: 0 8px 24px -18px rgba(110, 231, 255, 0.8);
 }
 
 /* Selected song */
 .rs-card--song.is-selected {
-  background: linear-gradient(145deg, #15314a, #0f2235);
-  border-color: var(--rs-glow);
+  background: rgba(21, 49, 74, 0.22);
+  border-bottom-color: var(--rs-glow);
 }
 
 /* Selected difficulty-mode card shares the song-card highlight treatment. */
 .rs-card--mode.is-selected {
-  background: linear-gradient(145deg, #15314a, #0f2235);
-  border-color: var(--rs-glow);
+  background: rgba(21, 49, 74, 0.22);
+  border-bottom-color: var(--rs-glow);
 }
 
 .rs-card__badge {

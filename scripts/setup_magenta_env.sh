@@ -37,12 +37,15 @@ uv pip install --python .venv-magenta/bin/python \
     "setuptools<70"
 
 # The PyPI magenta 2.1.4 wheel is missing magenta/music and magenta/models/shared,
-# so install from source instead.
-if not test -d /tmp/magenta-src
-    echo "==> Cloning Magenta source"
-    git clone --depth 1 https://github.com/magenta/magenta.git /tmp/magenta-src
+# so install from source instead. Keep the checkout outside /tmp so it survives
+# reboots and tmp cleanups (the editable install points at it).
+set -l MAGENTA_SRC $HOME/.local/share/cyberjam/magenta-src
+if not test -d $MAGENTA_SRC
+    echo "==> Cloning Magenta source to $MAGENTA_SRC"
+    mkdir -p (dirname $MAGENTA_SRC)
+    git clone --depth 1 https://github.com/magenta/magenta.git $MAGENTA_SRC
 end
-uv pip install --python .venv-magenta/bin/python --no-deps -e /tmp/magenta-src
+uv pip install --python .venv-magenta/bin/python --no-deps -e $MAGENTA_SRC
 
 echo "==> Verifying"
 .venv-magenta/bin/python -c "import tensorflow, note_seq; from magenta.models.shared import sequence_generator_bundle; print('magenta env OK')"

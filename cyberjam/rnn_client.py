@@ -11,6 +11,7 @@ caller simply keeps using the algorithmic generator.
 
 from __future__ import annotations
 
+import collections
 import json
 import logging
 import os
@@ -73,6 +74,7 @@ class RnnClient:
 
         self._proc: subprocess.Popen[str] | None = None
         self._lines: queue.Queue[str] = queue.Queue()
+        self._stderr_lines: collections.deque[str] = collections.deque(maxlen=25)
         self._result: dict | None = None
         self._result_lock = threading.Lock()
         self._request_event = threading.Event()
@@ -103,7 +105,7 @@ class RnnClient:
                 ],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
             )
@@ -115,6 +117,9 @@ class RnnClient:
         reader = threading.Thread(target=self._read_loop, name="RnnReader", daemon=True)
         reader.start()
         self._threads.append(reader)
+        stderr_reader = threading.Thread(target=self._stderr_loop, name="RnnStderr", daemon=True)
+        stderr_reader.start()
+        self._threads.append(stderr_reader)
 
         # Wait for the bundle-loading lines.
         ready = False
@@ -124,7 +129,7 @@ class RnnClient:
                 line = self._lines.get(timeout=0.2)
             except queue.Empty:
                 if self._proc.poll() is not None:
-                    logger.error("RNN worker exited during startup.")
+                    self._log_worker_stderr("exited during startup")
                     return False
                 continue
             try:
@@ -146,7 +151,7 @@ class RnnClient:
                 logger.error("RNN worker error: %s", payload.get("error"))
 
         if not self.loaded:
-            logger.error("RNN worker started but no bundles loaded; falling back to algorithmic generation.")
+            self._log_worker_stderr("started but loaded no bundles")
             self.stop()
             return False
 
@@ -185,6 +190,22 @@ class RnnClient:
                 self._lines.put(line)
         self._lines.put("")
 
+    def _stderr_loop(self) -> None:
+        proc = self._proc
+        if proc is None or proc.stderr is None:
+            return
+        for line in proc.stderr:
+            line = line.rstrip()
+            if line:
+                self._stderr_lines.append(line)
+
+    def _log_worker_stderr(self, reason: str) -> None:
+        tail = list(self._stderr_lines)
+        if tail:
+            logger.error("RNN worker %s. Last stderr lines:\n%s", reason, "\n".join(tail))
+        else:
+            logger.error("RNN worker %s (no stderr output).", reason)
+
     def _request_loop(self) -> None:
         while not self._stop.is_set():
             self._request_event.wait(timeout=0.2)
@@ -218,6 +239,7 @@ class RnnClient:
                     continue
                 if not line:
                     self.available = False
+                    self._log_worker_stderr("closed its stdout")
                     return
                 try:
                     payload = json.loads(line)

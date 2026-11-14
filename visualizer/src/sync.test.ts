@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startSelectionSync } from "./sync";
 import { INITIAL_SELECTION, useVisualizerStore } from "./store";
-import type { SessionSelection } from "./types";
+import type { SessionSelection, TelemetryFrame } from "./types";
 
 /**
  * Minimal in-memory BroadcastChannel mock: all instances on the same name
@@ -59,6 +59,24 @@ describe("startSelectionSync", () => {
 
     windowA.dispose();
     windowB.dispose();
+  });
+
+  it("sends live telemetry to the menu window without selection-only constraints", () => {
+    const received: TelemetryFrame[] = [];
+    const sender = startSelectionSync(() => {}, (frame) => received.push(frame));
+    const receiver = startSelectionSync(() => {}, (frame) => received.push(frame));
+    const frame: TelemetryFrame = {
+      timestamp: 1,
+      bpm: 124,
+      detected_pitch: { hz: 110, note: "A2", midi: 45, key: "A" },
+      rms: 0.2,
+      spectral_centroid_hz: 1500,
+      onset: true,
+    };
+    sender.publishTelemetry(frame);
+    expect(received).toEqual([frame]);
+    sender.dispose();
+    receiver.dispose();
   });
 
   it("does not deliver a window's own published message back to itself", () => {
