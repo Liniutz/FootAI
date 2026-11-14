@@ -172,25 +172,95 @@ def tapify(events: list[dict], bars: int) -> list[int]:
     return sorted(taps)
 
 
+def lock_bass_to_drums(
+    bass: list[dict], drums: list[dict], bars: int
+) -> list[dict]:
+    """Snap every bass note onto a drum hit so the line always sits with the kit.
+
+    Notes already on a drum step are kept. Others move to the nearest drum hit
+    (within two 16ths), otherwise to the nearest 8th. Each bar is guaranteed to
+    have a bass note on the downbeat, where the kick lands.
+    """
+    grid: dict[int, set[int]] = {}
+    for event in drums:
+        grid.setdefault(int(event.get("bar", 0)), set()).add(int(event.get("step", 0)))
+
+    locked: list[dict] = []
+    seen: set[tuple[int, int, int]] = set()
+    for event in bass:
+        bar = int(event.get("bar", 0))
+        if bar >= bars:
+            continue
+        step = int(event.get("step", 0))
+        hits = grid.get(bar, set())
+
+        if hits and step not in hits:
+            nearest = min(hits, key=lambda s: (abs(s - step), s))
+            if abs(nearest - step) <= 2:
+                step = nearest
+            else:
+                step = min(range(0, STEPS_PER_BAR, 2), key=lambda s: abs(s - step))
+
+        key = (bar, step, int(event.get("note", 0)))
+        if key in seen:
+            continue
+        seen.add(key)
+        locked.append({**event, "bar": bar, "step": step})
+
+    # Guarantee a downbeat note in every bar (the kick is always there).
+    for bar in range(bars):
+        if any(e["bar"] == bar and e["step"] == 0 for e in locked):
+            continue
+        bar_notes = [e for e in locked if e["bar"] == bar]
+        if not bar_notes:
+            continue
+        anchor = min(bar_notes, key=lambda e: e["step"])
+        locked.append(
+            {
+                "bar": bar,
+                "step": 0,
+                "note": anchor["note"],
+                "velocity": max(90, int(anchor.get("velocity", 100))),
+            }
+        )
+
+    locked.sort(key=lambda e: (e["bar"], e["step"], e["note"]))
+    return locked
+
+
 def _scale_note(root_pc: int, mode: str, degree: int) -> int:
     scale = SCALES.get(mode, SCALES["minor"])
     octave, index = divmod(degree, len(scale))
     return 36 + root_pc + 12 * octave + scale[index]
 
 
-def _melody_primer(root_pc: int, mode: str, bpm: float) -> note_seq.NoteSequence:
-    """One bar of quarter notes on root / fifth / octave / third."""
+# Primer shapes for the melody RNN. Different shapes push the model toward
+# different lines, which is the cheapest way to add variety to the bass.
+MELODY_PRIMERS: tuple[tuple[tuple[float, int], ...], ...] = (
+    ((0.0, 0), (1.0, 4), (2.0, 7), (3.0, 2)),          # root / fifth / octave / third
+    ((0.0, 0), (0.5, 0), (1.5, 4), (2.0, 7), (3.0, 4)),  # driving 8ths
+    ((0.0, 0), (1.0, 2), (2.0, 4), (3.0, 6)),          # walking up the scale
+    ((0.0, 0), (1.5, 7), (2.5, 4), (3.5, 2)),          # syncopated
+    ((0.0, 0), (2.0, 4), (3.0, 7)),                    # sparse
+)
+
+
+def _melody_primer(
+    root_pc: int, mode: str, bpm: float, variant: int = 0
+) -> note_seq.NoteSequence:
+    """One bar primer; ``variant`` selects a different rhythmic/melodic shape."""
     seq = note_seq.NoteSequence()
     seq.tempos.add(qpm=bpm)
     seq.time_signatures.add(numerator=4, denominator=4)
     beat = 60.0 / bpm
-    degrees = (0, 4, 7, 2)
-    for index, degree in enumerate(degrees):
+    shape = MELODY_PRIMERS[variant % len(MELODY_PRIMERS)]
+    for index, (offset, degree) in enumerate(shape):
         note = seq.notes.add()
         note.pitch = _scale_note(root_pc, mode, degree)
         note.velocity = 100
-        note.start_time = index * beat
-        note.end_time = (index + 1) * beat - 0.02
+        note.start_time = offset * beat
+        end = shape[index + 1][0] if index + 1 < len(shape) else 4.0
+        note.end_time = max(note.start_time + 0.05, end * beat - 0.02)
         note.instrument = 0
         note.program = 33
     seq.total_time = 4 * beat
@@ -503,10 +573,8 @@ def main() -> int:
             creativity = max(0.0, min(1.0, float(request.get("creativity", 0.6))))
 
             response: dict = {"ok": True, "bars": bars}
-            if "bass" in bundles:
-                response["bass"] = bundles["bass"].generate(
-                    _melody_primer(root_pc, mode, bpm), bpm, temperature, seed, bars
-                )
+
+            # Drums first: the bass is locked onto the kit afterwards.
             if groovae is not None:
                 groove_bars = 2
                 source = str(request.get("groovae_taps") or args.groovae_taps)
@@ -531,6 +599,23 @@ def main() -> int:
                     bundles["drums"].generate(_drum_primer(bpm), bpm, temperature, seed + 1, bars),
                     bars,
                 )
+
+            if "bass" in bundles:
+                # More creativity -> hotter sampling and a different primer shape.
+                bass_temperature = temperature + creativity * 0.5
+                variant = seed % len(MELODY_PRIMERS)
+                bass_events = bundles["bass"].generate(
+                    _melody_primer(root_pc, mode, bpm, variant),
+                    bpm,
+                    bass_temperature,
+                    seed,
+                    response["bars"],
+                )
+                if response.get("drums"):
+                    bass_events = lock_bass_to_drums(
+                        bass_events, response["drums"], response["bars"]
+                    )
+                response["bass"] = bass_events
             if "lead" in bundles:
                 response["lead"] = bundles["lead"].generate(
                     _melody_primer(root_pc, mode, bpm), bpm, temperature, seed + 2, bars

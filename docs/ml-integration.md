@@ -125,6 +125,16 @@ GrooVAE alone is a generic groove model, so `--models groovae` chains three stag
 The bass in this set is `cargo_bass.mag`, so the whole band is Cargo-flavoured with GrooVAE's
 human feel.
 
+#### Bass creativity and rhythmic lock
+
+- **Creativity** raises the melody RNN sampling temperature (`temperature + creativity * 0.5`)
+  and rotates the one-bar primer shape (`MELODY_PRIMERS`: quarters, driving 8ths, walking,
+  syncopated, sparse), so consecutive phrases differ.
+- **Lock to the kit**: after the drums are generated, `lock_bass_to_drums()` snaps every bass
+  note onto a drum hit (nearest hit within two 16ths, otherwise the nearest 8th) and guarantees
+  a note on each bar's downbeat where the kick lands. The bass therefore always sits with the
+  drums instead of floating between hits.
+
 ```fish
 ./start_cyberjam.sh --models groovae                      # Cargo rhythm -> GrooVAE feel
 set -x CYBERJAM_GROOVAE_TAPS live                          # use your guitar onsets as taps instead
