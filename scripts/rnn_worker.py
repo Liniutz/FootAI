@@ -89,7 +89,7 @@ def simplify_drums(events: list[dict], bars: int) -> list[dict]:
     return simplified
 
 
-def cargo_drums(events: list[dict], bars: int) -> list[dict]:
+def cargo_drums(events: list[dict], bars: int, creativity: float = 0.5) -> list[dict]:
     """Shape a generated groove into Cargo's straight-ahead rock feel.
 
     Cargo's drummer (Romanian rock: "Doi pași", "Aproape de voi") plays a driving
@@ -97,7 +97,11 @@ def cargo_drums(events: list[dict], bars: int) -> list[dict]:
     hard backbeat on 2 and 4, a ghost note before the backbeat, a crash on the
     phrase downbeat and an open hat closing the phrase. No double-pedal runs and
     at most three kicks per bar.
+
+    ``creativity`` (0..1) adds tasteful variation without breaking the shape:
+    extra kick pushes, ghost notes, 16th-note hat pickups and extra open hats.
     """
+    creativity = max(0.0, min(1.0, float(creativity)))
     shaped: list[dict] = []
     for bar in range(bars):
         bar_events = [e for e in events if int(e.get("bar", 0)) == bar]
@@ -118,9 +122,17 @@ def cargo_drums(events: list[dict], bars: int) -> list[dict]:
                 {"bar": bar, "step": step, "note": CLOSED_HAT, "velocity": velocity}
             )
 
-        # Kick: 1 and 3, plus the "and of 3" push when the model played it.
+        # Occasional 16th-note hat pickup (creativity only).
+        if random.random() < creativity * 0.35:
+            pickup = random.choice((3, 7, 11, 13))
+            shaped.append(
+                {"bar": bar, "step": pickup, "note": CLOSED_HAT, "velocity": random.randint(38, 62)}
+            )
+
+        # Kick: 1 and 3, plus the "and of 3" push when the model played it,
+        # or now and then when feeling creative.
         kick_steps = [0, 8]
-        if 10 in kicks:
+        if 10 in kicks or random.random() < creativity * 0.5:
             kick_steps.append(10)
         for step in kick_steps:
             shaped.append(
@@ -133,13 +145,15 @@ def cargo_drums(events: list[dict], bars: int) -> list[dict]:
 
         # Ghost note just before the backbeat (a Cargo signature).
         ghost = 7 if 7 in snares else (15 if 15 in snares else None)
+        if ghost is None and random.random() < creativity * 0.6:
+            ghost = random.choice((7, 15))
         if ghost is not None:
             shaped.append({"bar": bar, "step": ghost, "note": SNARE, "velocity": 34})
 
         # Crash on the phrase downbeat, open hat closing the phrase.
         if bar % 4 == 0:
             shaped.append({"bar": bar, "step": 0, "note": CRASH, "velocity": 98})
-        if bar % 4 == 3:
+        if bar % 4 == 3 or random.random() < creativity * 0.4:
             shaped.append({"bar": bar, "step": 14, "note": OPEN_HAT, "velocity": 80})
 
     shaped.sort(key=lambda e: (e["bar"], e["step"], e["note"]))
@@ -281,6 +295,7 @@ class GrooveVae:
             )
             q_z = self.config.model.encode(self._inputs, self._lengths, self._controls)
             self._mu = q_z.loc
+            self._sigma = q_z.scale.diag
             variables = {
                 v.name[:-2]: v for v in tf.global_variables() if v.name != "global_step:0"
             }
@@ -301,15 +316,46 @@ class GrooveVae:
         self.session = tf.Session(graph=graph)
         self.session.run([variables[name].assign(weights[name]) for name in variables])
 
-    def generate(self, taps: list[int], bpm: float, temperature: float, seed: int) -> list[dict]:
+    def _mutate_taps(self, taps: list[int], creativity: float) -> list[int]:
+        """Nudge the tap rhythm so repeated requests do not yield the same groove."""
+        if creativity <= 0.0:
+            return sorted({int(t) for t in taps if 0 <= int(t) < self.steps})
+        mutated = {int(t) for t in taps if 0 <= int(t) < self.steps}
+
+        for _ in range(int(round(creativity * 2))):
+            if mutated and random.random() < creativity:
+                mutated.discard(random.choice(sorted(mutated)))
+
+        for _ in range(int(round(creativity * 3))):
+            if random.random() < creativity:
+                mutated.add(random.randrange(self.steps))
+
+        for step in list(mutated):
+            if 0 < step < self.steps and random.random() < creativity * 0.3:
+                mutated.add(step - 1)
+
+        return sorted(mutated)
+
+    def generate(
+        self,
+        taps: list[int],
+        bpm: float,
+        temperature: float,
+        seed: int,
+        creativity: float = 0.5,
+    ) -> list[dict]:
         np = self.np
+        creativity = max(0.0, min(1.0, float(creativity)))
+        random.seed(seed)
+        taps = self._mutate_taps(taps, creativity)
+
         beat = 60.0 / bpm
         step_dur = beat / 4.0
 
         seq = note_seq.NoteSequence()
         seq.tempos.add(qpm=bpm)
         seq.time_signatures.add(numerator=4, denominator=4)
-        for step in sorted({int(t) for t in taps if 0 <= int(t) < self.steps}):
+        for step in taps:
             note = seq.notes.add()
             note.pitch = 46  # open hi-hat: the tapify channel
             note.velocity = 100
@@ -324,14 +370,21 @@ class GrooveVae:
         inputs = np.array(tensors.inputs, dtype=np.float32)
         controls = np.zeros((1, inputs.shape[1], self.converter.control_depth), np.float32)
 
-        mu = self.session.run(
-            self._mu,
+        mu, sigma = self.session.run(
+            [self._mu, self._sigma],
             {self._inputs: inputs, self._lengths: [inputs.shape[1]], self._controls: controls},
         )
-        random.seed(seed)
+        # Reparameterised sampling: creativity 0 keeps the deterministic mean,
+        # higher values explore the latent space like a VAE sample.
+        if creativity > 0.0:
+            noise = np.random.default_rng(seed).standard_normal(mu.shape).astype(np.float32)
+            z = mu + sigma * noise * (creativity * 1.5)
+        else:
+            z = mu
+
         outputs = self.session.run(
             self._outputs,
-            {self._z: mu, self._temperature: float(temperature), self._max_length: self.steps},
+            {self._z: z, self._temperature: float(temperature), self._max_length: self.steps},
         )
         generated = self.converter.from_tensors(outputs)[0]
 
@@ -447,6 +500,8 @@ def main() -> int:
             seed = int(request.get("seed", 0))
             bars = max(1, min(8, int(request.get("bars", 4))))
 
+            creativity = max(0.0, min(1.0, float(request.get("creativity", 0.6))))
+
             response: dict = {"ok": True, "bars": bars}
             if "bass" in bundles:
                 response["bass"] = bundles["bass"].generate(
@@ -466,7 +521,9 @@ def main() -> int:
                     taps = tapify(seed_events, groove_bars)
 
                 response["drums"] = cargo_drums(
-                    groovae.generate(taps, bpm, temperature, seed + 1), groove_bars
+                    groovae.generate(taps, bpm, temperature, seed + 1, creativity),
+                    groove_bars,
+                    creativity,
                 )
                 response["bars"] = groove_bars
             elif "drums" in bundles:
