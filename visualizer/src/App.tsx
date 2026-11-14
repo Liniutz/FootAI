@@ -15,7 +15,7 @@ import { useSelectionSync } from "./sync";
 import { openBothScreens, type OpenWindowsResult } from "./windows";
 import { MenuView } from "./views/MenuView";
 import { VisualizerView } from "./views/VisualizerView";
-import { DebugPanel } from "./components/DebugPanel";
+import { isMockEnabled, startMockFeed } from "./dev/mockFeed";
 import "./App.css";
 
 function Launcher() {
@@ -68,6 +68,14 @@ export function App() {
   // Keep this window's selection synced with the other window.
   useSelectionSync();
 
+  // Dev-only: synthesize telemetry + band MIDI so the Visualizer animates
+  // without the engine. Gated behind the `?mock` URL flag; inert otherwise.
+  useEffect(() => {
+    if (!isMockEnabled()) return;
+    const feed = startMockFeed();
+    return () => feed.stop();
+  }, []);
+
   return (
     <div className="app" data-route={route}>
       <header className="app__header">
@@ -79,8 +87,6 @@ export function App() {
         {route === "visualizer" && <VisualizerView />}
         {route === "home" && <Launcher />}
       </main>
-
-      <DebugPanel />
     </div>
   );
 }
