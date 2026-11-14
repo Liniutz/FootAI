@@ -12,18 +12,22 @@
 import { useEffect, useState } from "react";
 import { useRoute } from "./router";
 import { useSelectionSync } from "./sync";
+import { useTelemetry } from "./telemetry/useTelemetry";
 import { openBothScreens, type OpenWindowsResult } from "./windows";
 import { MenuView } from "./views/MenuView";
 import { VisualizerView } from "./views/VisualizerView";
 import { isMockEnabled, startMockFeed } from "./dev/mockFeed";
+import { loadSelection } from "./menu/persistence";
+import { useVisualizerStore } from "./store";
 import "./App.css";
 
 function Launcher() {
-  // Attempt an automatic split into two windows on first mount; browsers
-  // usually block unprompted popups, so fall back to a manual button (1=b).
+  // Open the TV from a user gesture; this window becomes the operator monitor.
+  // Browsers may block the popup, in which case the operator can retry.
   const [result, setResult] = useState<OpenWindowsResult | null>(null);
 
   useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, "").toLowerCase() === "menu") return;
     setResult(openBothScreens());
   }, []);
 
@@ -35,8 +39,7 @@ function Launcher() {
 
       {result === "opened" ? (
         <p className="launcher__hint">
-          Menu and Visualizer launched in separate windows — drag each to its
-          screen. You can close this tab.
+          The TV Visualizer is open. This window is the Menu and learning monitor.
         </p>
       ) : (
         <>
@@ -56,7 +59,7 @@ function Launcher() {
       )}
 
       <p className="launcher__hint">
-        Pick your song on the Menu screen — it lights up the Visualizer live.
+        Choose the session and follow beginner guidance on this monitor; the TV shows the live Visualizer.
       </p>
     </section>
   );
@@ -65,7 +68,20 @@ function Launcher() {
 export function App() {
   const route = useRoute();
 
-  // Keep this window's selection synced with the other window.
+  // Seed persisted selection on the TV route if it hasn't received one via
+  // BroadcastChannel yet (e.g. opened directly or after Menu mounted).
+  useEffect(() => {
+    if (route !== "visualizer") return;
+    if (useVisualizerStore.getState().selection.songId !== null) return;
+    const stored = loadSelection();
+    if (stored.songId) {
+      useVisualizerStore.getState().setSelection(stored);
+    }
+  }, [route]);
+
+  // Each screen maintains engine telemetry; BroadcastChannel forwards frames
+  // and selection so either display stays useful when the peer is offline.
+  useTelemetry();
   useSelectionSync();
 
   // Dev-only: synthesize telemetry + band MIDI so the Visualizer animates
@@ -78,9 +94,11 @@ export function App() {
 
   return (
     <div className="app" data-route={route}>
-      <header className="app__header">
-        <h1 className="app__title">CyberJam</h1>
-      </header>
+      {route === "home" && (
+        <header className="app__header">
+          <h1 className="app__title">CyberJam</h1>
+        </header>
+      )}
 
       <main className="app__main">
         {route === "menu" && <MenuView />}

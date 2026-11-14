@@ -91,6 +91,8 @@ export function parseTelemetryFrame(raw: unknown): TelemetryFrame | null {
     rms: f.rms,
     spectral_centroid_hz: f.spectral_centroid_hz,
     onset: f.onset,
+    ...(typeof f.demo_phase === "string" ? { demo_phase: f.demo_phase } : {}),
+    ...(typeof f.demo_prompt === "string" ? { demo_prompt: f.demo_prompt } : {}),
   };
 }
 

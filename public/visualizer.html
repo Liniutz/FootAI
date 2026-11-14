@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>CyberJam Live Visualizer & DAW Dashboard</title>
+    <style>
+        body { background: #121214; color: #e1e1e6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; }
+        header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #29292e; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { margin: 0; font-size: 24px; color: #00b37e; text-shadow: 0 0 12px rgba(0,179,126,0.3); }
+        .stats { display: flex; gap: 20px; }
+        .stat-box { background: #202024; padding: 10px 15px; border-radius: 8px; border: 1px solid #323238; }
+        .stat-label { font-size: 12px; color: #8d8d99; text-transform: uppercase; }
+        .stat-value { font-size: 18px; font-weight: bold; color: #00b37e; margin-top: 4px; }
+        .daw-container { display: grid; grid-template-columns: 200px 1fr; gap: 20px; }
+        .track-headers { display: flex; flex-direction: column; gap: 10px; margin-top: 40px; }
+        .track-header { height: 60px; background: #202024; border: 1px solid #323238; border-radius: 6px; display: flex; align-items: center; padding: 0 15px; font-weight: bold; }
+        .piano-roll-wrapper { background: #202024; border: 1px solid #323238; border-radius: 8px; overflow-x: auto; position: relative; height: 320px; }
+        canvas { background: #18181b; display: block; }
+        .footer-info { margin-top: 20px; background: #202024; padding: 15px; border-radius: 8px; border: 1px solid #323238; font-size: 14px; color: #8d8d99; }
+        .demo-banner { display: none; margin-bottom: 18px; padding: 14px 18px; border-radius: 8px; font-size: 16px; font-weight: 600; border: 1px solid #323238; background: #202024; color: #e1e1e6; }
+        .demo-banner.capture { border-color: #fba94c; color: #fba94c; box-shadow: 0 0 18px rgba(251,169,76,0.25); }
+        .demo-banner.locked { border-color: #00b37e; color: #00b37e; box-shadow: 0 0 18px rgba(0,179,126,0.25); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CyberJam Live Telemetry Visualizer</h1>
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">Live Tempo (BPM)</div>
+                <div class="stat-value" id="bpm-val">120.0 BPM</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Detected Key</div>
+                <div class="stat-value" id="key-val">E Minor</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Active Root</div>
+                <div class="stat-value" id="root-val">E</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Active Step</div>
+                <div class="stat-value" id="step-val">0 / 16</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="demo-banner" id="demoBanner"></div>
+
+    <div class="daw-container">
+        <div class="track-headers">
+            <div class="track-header" style="border-left: 4px solid #fba94c;">Live Guitar In</div>
+            <div class="track-header" style="border-left: 4px solid #6bd8ff;">MelodyRNN Bass</div>
+            <div class="track-header" style="border-left: 4px solid #f75a68;">DrumRNN Kit</div>
+        </div>
+        <div>
+            <div style="font-size: 14px; color: #8d8d99; margin-bottom: 6px;">FL Studio Piano Roll Timeline (Connected to ws://127.0.0.1:8080)</div>
+            <div class="piano-roll-wrapper">
+                <canvas id="pianoRoll" width="1200" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <strong>Connection Status:</strong> <span id="connStatus" style="color: #f75a68;">Connecting to WebSocket...</span><br>
+        <em>Streaming live note events from DrumRNN & MelodyRNN.</em>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pianoRoll');
+        const ctx = canvas.getContext('2d');
+        let activeNotes = [];
+        let ws = null;
+
+        function drawGrid() {
+            ctx.fillStyle = '#18181b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = '#27272a';
+            ctx.lineWidth = 1;
+            for (let y = 0; y < canvas.height; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            const now = Date.now() / 1000.0;
+            activeNotes.forEach(note => {
+                const x = 100 + (note.time - (now - 12)) * 100;
+                const y = canvas.height - ((note.pitch - 30) * 6);
+                const width = Math.max(20, (note.duration || 0.3) * 100);
+                
+                ctx.fillStyle = note.track === 'bass' ? '#6bd8ff' : (note.track === 'drums' ? '#f75a68' : '#fba94c');
+                ctx.fillRect(x, y - 8, width, 14);
+                ctx.strokeStyle = '#ffffff';
+                ctx.strokeRect(x, y - 8, width, 14);
+            });
+        }
+
+        setInterval(drawGrid, 30);
+
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(proto + '//127.0.0.1:8080');
+
+            ws.onopen = function() {
+                document.getElementById('connStatus').innerText = 'Connected (ws://127.0.0.1:8080)';
+                document.getElementById('connStatus').style.color = '#00b37e';
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                if (data.bpm !== undefined) document.getElementById('bpm-val').innerText = data.bpm.toFixed(1) + ' BPM';
+                if (data.key !== undefined) document.getElementById('key-val').innerText = data.key;
+                if (data.active_root !== undefined) document.getElementById('root-val').innerText = data.active_root;
+                if (data.current_step !== undefined) document.getElementById('step-val').innerText = (data.current_step + 1) + ' / 16';
+                if (data.demo_prompt !== undefined) {
+                    const banner = document.getElementById('demoBanner');
+                    if (data.demo_prompt) {
+                        banner.style.display = 'block';
+                        banner.innerText = data.demo_prompt;
+                        banner.className = 'demo-banner ' + (data.demo_phase || '');
+                    } else {
+                        banner.style.display = 'none';
+                    }
+                }
+                if (data.notes && Array.isArray(data.notes)) {
+                    activeNotes = data.notes;
+                }
+            };
+
+            ws.onclose = function() {
+                document.getElementById('connStatus').innerText = 'Disconnected. Reconnecting in 2s...';
+                document.getElementById('connStatus').style.color = '#f75a68';
+                setTimeout(connectWS, 2000);
+            };
+
+            ws.onerror = function() {
+                ws.close();
+            };
+        }
+
+        connectWS();
+    </script>
+</body>
+</html>

@@ -6,6 +6,7 @@
  * unmount. Allows dependency injection for tests.
  */
 import { useEffect } from "react";
+import { publishTelemetryToPeer } from "../sync";
 import { useVisualizerStore } from "../store";
 import {
   TelemetryClient,
@@ -29,7 +30,10 @@ export function useTelemetry(options: UseTelemetryOptions = {}): void {
       url,
       socketFactory,
       scheduleReconnect,
-      onFrame: setLatestFrame,
+      onFrame: (frame) => {
+        setLatestFrame(frame);
+        publishTelemetryToPeer(frame);
+      },
       onStatus: setConnectionStatus,
     });
     client.start();

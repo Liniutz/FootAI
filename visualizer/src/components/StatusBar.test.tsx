@@ -79,4 +79,12 @@ describe("StatusBar", () => {
       screen.getByRole("button", { name: "Enable Audio" }),
     ).toBeInTheDocument();
   });
+
+  it("hides the band-MIDI pill when showMidi is false", () => {
+    setStatuses({ connection: "open", midi: "port-missing" });
+    render(<StatusBar showMidi={false} />);
+    expect(screen.queryByTestId("status-midi")).not.toBeInTheDocument();
+    // A missing MIDI port must not drive the guidance line when hidden.
+    expect(screen.queryByTestId("status-hint")).not.toBeInTheDocument();
+  });
 });

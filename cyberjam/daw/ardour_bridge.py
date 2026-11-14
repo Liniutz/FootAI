@@ -4,7 +4,7 @@ Connects CyberJam telemetry and musical state to Ardour via OSC (Open Sound Cont
 and virtual ALSA MIDI ports.
 """
 
-from __core__ import annotations
+from __future__ import annotations
 
 import argparse
 import asyncio

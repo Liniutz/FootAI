@@ -7,4 +7,4 @@ set -euo pipefail
 
 exec pw-loopback \
   --capture-props="node.name=CyberJam_VisualIn node.description='CyberJam Visual In'" \
-  --playback-props="media.class=Audio/Source node.name=CyberJam_VisualSource node.description='CyberJam Visual Audio'"
+  --playback-props='media.class=Audio/Source node.name=CyberJam_VisualSource node.description="CyberJam Visual Audio"'

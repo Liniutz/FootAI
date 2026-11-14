@@ -35,6 +35,21 @@ pip install -r requirements.txt
 > [!NOTE]
 > On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cyberjam/audio_dsp.py` automatically falls back to SuperFlux onsets and a `librosa.yin` pitch estimator (BPM always uses the NumPy guitar tempo tracker in `cyberjam/tempo.py`). `aubio` is optional in `requirements.txt` if the `aubio` C-extension is absent.
 
+## 2b. Magenta RNN Environment (optional)
+
+The trained `.mag` bundles in `models/` require TensorFlow 2.15 + Magenta, which only support
+Python <= 3.11. They run in a **separate** interpreter and are driven by the session over
+stdin/stdout JSON, so the main `.venv` stays on 3.14:
+
+```fish
+fish scripts/setup_magenta_env.sh
+```
+
+This creates `.venv-magenta` (Python 3.9 via `uv`), installs TensorFlow 2.15, note-seq and
+Magenta from source, and verifies the import. With the env present, `./start_cyberjam.sh`
+picks up `models/wetransfer_cargo_bass-mag_2026-11-14_1356/cargo_{bass,drums,lead}.mag`
+automatically; without it, the algorithmic generator is used instead.
+
 ## 3. Running the Session
 
 ### Direct (Fish / `.venv`)
@@ -47,6 +62,15 @@ pip install -r requirements.txt
 ```fish
 pw-jack .venv/bin/python run_session.py --pipewire-loopback
 ```
+
+## 3b. Visualizer-Controlled Session Start
+
+`npm run dev` in `visualizer/` starts Vite and the loopback-only session-control service together.
+The Menu's **Start Session** button starts `scripts/setup_pipewire_loopback.sh` and
+`start_cyberjam.sh` through that service. Both the virtual source and engine are intentionally left
+running when browser windows close. Selecting **Freestyle** automatically prompts for four bars (sixteen measures), captures the guitar groove, then locks the median detected tempo and starts the backing band. Use **Stop Session** in the Menu to gracefully stop the engine,
+RNN worker, and virtual source together. The service is bound to loopback only and must run on the same workstation as the Python engine and
+PipeWire audio devices. Do not expose port `8765` to the network.
 
 ## 4. CLI Flags
 

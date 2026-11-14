@@ -51,6 +51,16 @@ export const INSTRUMENTS: readonly InstrumentEntry[] = [
 
 export const SONGS: readonly SongEntry[] = [
   {
+    id: "freestyle",
+    title: "Freestyle",
+    // No fixed target — the guitar leads and the ML band follows it. The
+    // reference values are only sensible defaults for the Visualizer and are
+    // not shown as a target in freestyle mode.
+    referenceBpm: DEFAULT_BPM,
+    referenceKey: DEFAULT_KEY,
+    freestyle: true,
+  },
+  {
     id: "cargo-song",
     title: "Cargo",
     referenceBpm: 128,
@@ -97,4 +107,10 @@ export function isValidInstrumentId(id: string): boolean {
 /** True when `id` names a known song in the catalog. */
 export function isValidSongId(id: string): boolean {
   return getSongById(id) !== undefined;
+}
+
+/** True when the given song id is the freestyle jam mode (not a real song). */
+export function isFreestyleSong(id: string | null): boolean {
+  if (!id) return false;
+  return getSongById(id)?.freestyle === true;
 }

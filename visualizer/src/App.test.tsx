@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import App from "./App";
+import { useVisualizerStore, INITIAL_SELECTION } from "./store";
+import { SELECTION_STORAGE_KEY } from "./menu/persistence";
 
 function setHash(hash: string) {
   act(() => {
@@ -20,39 +22,36 @@ describe("App shell (routing)", () => {
     vi.restoreAllMocks();
   });
 
-  it("auto-opens both screens at the home route and shows the opened message", () => {
-    const open = vi
-      .spyOn(window, "open")
-      .mockReturnValue(FAKE_WINDOW);
-
+  it("keeps the launcher open as Menu and opens the TV Visualizer", async () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(FAKE_WINDOW);
     render(<App />);
 
-    expect(
-      screen.getByRole("region", { name: "Launcher" }),
-    ).toBeInTheDocument();
-    // One call per screen (menu + visualizer).
-    expect(open).toHaveBeenCalledTimes(2);
-    expect(open.mock.calls[0]?.[1]).toBe("cyberjam-menu");
-    expect(open.mock.calls[1]?.[1]).toBe("cyberjam-visualizer");
-    expect(screen.getByText(/Menu and Visualizer launched/)).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Launcher" })).not.toBeInTheDocument();
+    expect(open).toHaveBeenCalledOnce();
+    expect(open.mock.calls[0]?.[1]).toBe("cyberjam-visualizer");
   });
 
-  it("falls back to a manual button when popups are blocked", async () => {
-    // Blocked popups -> window.open returns null.
+  it("can retry opening the TV when the browser blocks the popup", async () => {
     const open = vi.spyOn(window, "open").mockReturnValue(null);
-
     render(<App />);
 
     const button = screen.getByRole("button", { name: /Start the Show/ });
-    expect(button).toBeInTheDocument();
     expect(screen.getByText(/held back the second screen/)).toBeInTheDocument();
-
-    // Clicking retries the open (user gesture).
     open.mockReturnValue(FAKE_WINDOW);
-    await act(async () => {
-      button.click();
-    });
-    expect(screen.getByText(/Menu and Visualizer launched/)).toBeInTheDocument();
+    await act(async () => button.click());
+
+    expect(await screen.findByRole("region", { name: "Menu" })).toBeInTheDocument();
+    expect(open).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps the global header off the Menu and TV screens", () => {
+    setHash("#/menu");
+    const { rerender } = render(<App />);
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
+    setHash("#/visualizer");
+    rerender(<App />);
+    expect(screen.queryByRole("banner")).not.toBeInTheDocument();
   });
 
   it("does not render the removed header nav links", () => {
@@ -93,16 +92,34 @@ describe("App shell (routing)", () => {
     expect(open).not.toHaveBeenCalled();
   });
 
-  it("updates the view when the hash changes (same window)", () => {
+  it("shows the requested screen for a directly-opened window route", () => {
     vi.spyOn(window, "open").mockReturnValue(FAKE_WINDOW);
-    render(<App />);
-    expect(
-      screen.getByRole("region", { name: "Launcher" }),
-    ).toBeInTheDocument();
-
+    setHash("#/menu");
+    const { rerender } = render(<App />);
+    expect(screen.getByRole("region", { name: "Menu" })).toBeInTheDocument();
     setHash("#/visualizer");
-    expect(
-      screen.getByRole("region", { name: "Visualizer" }),
-    ).toBeInTheDocument();
+    rerender(<App />);
+    expect(screen.getByRole("region", { name: "Visualizer" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Menu" })).not.toBeInTheDocument();
+  });
+
+  it("rehydrates the persisted selection on a directly-opened Menu window", () => {
+    localStorage.setItem(
+      SELECTION_STORAGE_KEY,
+      JSON.stringify({
+        songId: "cargo-song",
+        instrumentIds: ["drums"],
+        mode: "beginner",
+      }),
+    );
+    useVisualizerStore.setState({ selection: INITIAL_SELECTION });
+
+    setHash("#/menu");
+    render(<App />);
+
+    const selection = useVisualizerStore.getState().selection;
+    expect(selection.songId).toBe("cargo-song");
+    expect(selection.mode).toBe("beginner");
+    localStorage.clear();
   });
 });

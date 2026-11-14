@@ -1,73 +1,51 @@
 /**
  * Visualizer view (Lane C + track E).
  *
- * Layout:
- *   - top HUD: status pills + score/combo/multiplier
- *   - stage row: Rock Meter | Adrian + note panel
- *   - live waveform
- *   - horizontal 6-string fretboard (ML band notes placed on strings by pitch)
+ * TV layout: full-screen performance visuals with unboxed live song, tempo,
+ * key, score, guitar input meter, Adrian sprite, detected note panel, and
+ * live waveform. Song selection and beginner coaching live on the Menu display.
+ *
+ * Generated band instruments remain an engine concern; their labels and MIDI
+ * lane visuals are intentionally not shown on the TV performance screen.
  */
-import { useVisualizerStore } from "../store";
-import { useTelemetry } from "../telemetry/useTelemetry";
 import { useAudioCapture } from "../audio/useAudioCapture";
-import { useBandMidi } from "../midi/useBandMidi";
+import { useVisualizerStore } from "../store";
 import { useFlow } from "../visualizer/useFlow";
 import { WaveformCanvas } from "../visualizer/WaveformCanvas";
 import { NotePitchPanel } from "../visualizer/NotePitchPanel";
 import { AdrianStage } from "../visualizer/AdrianStage";
-import { Fretboard } from "../visualizer/Fretboard";
-import { RockMeter, ScoreBoard } from "../visualizer/GuitarHeroHud";
+import { RockMeter } from "../visualizer/GuitarHeroHud";
 import { SessionOverlay } from "../visualizer/SessionOverlay";
-import { StatusBar } from "../components/StatusBar";
 import "../visualizer/visualizer.css";
 
 export function VisualizerView() {
-  useTelemetry();
   useFlow();
 
   const { start: startAudio, analyser } = useAudioCapture();
-  const { start: startMidi } = useBandMidi();
-
   const audioStatus = useVisualizerStore((s) => s.audioStatus);
-  const midiStatus = useVisualizerStore((s) => s.midiStatus);
 
   return (
-    <section aria-label="Visualizer" className="view view--visualizer gh">
-      <StatusBar>
-        {audioStatus !== "active" && (
-          <button
-            type="button"
-            className="visualizer__enable-audio"
-            onClick={() => void startAudio()}
-          >
-            Enable Audio
-          </button>
-        )}
-        {midiStatus !== "active" && (
-          <button
-            type="button"
-            className="visualizer__enable-audio"
-            onClick={() => void startMidi()}
-          >
-            Connect Band MIDI
-          </button>
-        )}
-        <ScoreBoard />
-      </StatusBar>
-
+    <section aria-label="Visualizer" className="view view--visualizer gh gh--tv">
       <SessionOverlay />
-
-      <div className="gh-stage">
+      <div className="gh-stage gh-stage--tv">
         <RockMeter />
         <div className="gh-stage__center">
           <AdrianStage />
         </div>
         <NotePitchPanel />
       </div>
-
-      <WaveformCanvas analyser={analyser} />
-
-      <Fretboard />
+      <div className="tv-waveform-row">
+        <WaveformCanvas analyser={analyser} />
+        {audioStatus !== "active" && (
+          <button
+            type="button"
+            className="tv-enable-audio"
+            onClick={() => void startAudio()}
+          >
+            Enable Audio
+          </button>
+        )}
+      </div>
     </section>
   );
 }

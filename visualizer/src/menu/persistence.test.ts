@@ -16,7 +16,11 @@ describe("selection persistence", () => {
   });
 
   it("round-trips a valid selection", () => {
-    const selection = { songId: "cargo-song", instrumentIds: ["drums", "bass"] };
+    const selection = {
+      songId: "cargo-song",
+      instrumentIds: ["drums", "bass"],
+      mode: "beginner" as const,
+    };
     saveSelection(selection);
     expect(loadSelection()).toEqual(selection);
   });
@@ -27,8 +31,16 @@ describe("selection persistence", () => {
   });
 
   it("drops a song id that is not in the catalog", () => {
-    saveSelection({ songId: "ghost-song", instrumentIds: [] });
+    saveSelection({ songId: "ghost-song", instrumentIds: [], mode: null });
     expect(loadSelection().songId).toBeNull();
+  });
+
+  it("drops an invalid difficulty mode", () => {
+    localStorage.setItem(
+      SELECTION_STORAGE_KEY,
+      JSON.stringify({ songId: "cargo-song", instrumentIds: [], mode: "pro" }),
+    );
+    expect(loadSelection().mode).toBeNull();
   });
 
   it("filters out unknown instrument ids and de-duplicates", () => {
@@ -42,6 +54,7 @@ describe("selection persistence", () => {
     expect(loadSelection()).toEqual({
       songId: "cargo-song",
       instrumentIds: ["drums", "bass"],
+      mode: null,
     });
   });
 

@@ -1,19 +1,13 @@
 # React Visualizer — Implementation Plan
 
 The **CyberJam Visualizer** is a standalone React web application for the installation. It
-consumes the existing (unmodified) Python engine APIs and provides two features:
+consumes the Python engine telemetry and presents a control Menu display plus a simplified, fullscreen TV performance display:
 
-1. **Menu** — choose the song and the instruments for the session.
-2. **Visualizer** — render the guitar notes you play (from DSP telemetry) and a live waveform
-   of the audio, while the DAW/speakers produce the ML accompaniment audio.
+1. **Menu** — choose the song/difficulty, monitor live BPM/key, and display beginner guidance. Menu and Visualizer synchronize selection and validated telemetry directly using `BroadcastChannel`.
+2. **Visualizer** — a headerless fullscreen TV view of the guitar note, live waveform and performance graphics. Band/instrument labels are omitted from the display; engine band behavior is unchanged.
 
-**Two-window / two-screen layout:** one running dev-server instance serves three hash routes
-(`#/` launcher, `#/menu`, `#/visualizer`). On load, the launcher **automatically attempts to open
-both screens as separate browser windows** (one per screen); if the browser blocks the popups it
-falls back to a single "Open both screens" button. The operator adjusts the Menu in real time on
-screen 1 while screen 2 shows the full Visualizer. The two windows share the user's `selection`
-live via the **BroadcastChannel** API (client-side only, no backend). There is no in-app
-navigation chrome — each view fills its window.
+**Two-window / two-screen layout:** the launcher window becomes the Menu/learning monitor, and a popup opens the TV Visualizer. One running dev-server instance serves three hash routes
+(`#/` launcher, `#/menu`, `#/visualizer`). The launcher attempts to open the TV Visualizer window, then this window becomes the persistent Menu/learning monitor. If the browser blocks the popup, the operator can retry using the visible button. The Menu remains available for live session control while the TV shows the Visualizer. Both windows share `selection` and telemetry through **BroadcastChannel** (client-side only, no backend). There is no in-app navigation chrome — each view fills its window.
 
 > [!IMPORTANT]
 > This subsystem does **not** modify the Python engine, open any new ports, or add a backend.
@@ -40,8 +34,11 @@ navigation chrome — each view fills its window.
 ### Excluded on purpose
 - **Raw UDP `:13000` PCM** — not accessible from a browser; the PipeWire Virtual Source path is
   used instead. Live audio therefore requires the engine launched with `--pipewire-loopback`.
-- **OSC `:12000`** and **`CyberJam_Band` MIDI** — reference-only contracts. The app does not open
-  them; it may *display* the documented roles (Ch 1 CC, Ch 2 bass, Ch 10 drums) as lane labels.
+- **OSC `:12000`** — reference-only; the app never opens it.
+- **`CyberJam_Band` MIDI** — originally reference-only, but **Extension track E** now *reads* it
+  via the browser **Web MIDI API** (input only, never output) to drive the band note ribbon.
+  Channel roles are shown as lane labels (Ch 1 CC, Ch 2 bass, Ch 10 drums). This opens no new port
+  and does not modify the engine.
 
 ---
 
@@ -137,8 +134,9 @@ flowchart TD
 
 **The frozen contract (produced in Task 2, do not change unilaterally after Sprint 0):**
 - `TelemetryFrame` — the telemetry JSON shape (Visualizer lane reads it).
-- `SessionSelection` — `{ songId, instrumentIds }` (Menu lane writes it, Visualizer lane reads it
-  in Task 9).
+- `SessionSelection` — `{ songId, instrumentIds, mode }` where `mode` is the per-song difficulty
+  (`"beginner" | "experienced" | null`; always null for Freestyle). The Menu lane writes it; the
+  Visualizer lane reads it in Task 9.
 - The Zustand store slices `latestFrame`, `connectionStatus`, `audioStatus`, `selection` and their
   actions.
 - The `catalog.ts` instrument/song entry types (`id`, `lane`, `displayColor`, `midiChannel`,
@@ -217,7 +215,7 @@ lanes with the same dependency can run simultaneously.
   - *Tests:* Unit-test store actions (set frame, set selection, set statuses) and initial state.
   - *Demo:* A temporary debug panel renders `connectionStatus` and `selection` from the store.
   - *Result:* Frozen contract in `src/types.ts` (`TelemetryFrame`/`DetectedPitch` matching the JSON
-    schema exactly, `SessionSelection` = `{ songId, instrumentIds }`, status unions, and the
+    schema exactly, `SessionSelection` = `{ songId, instrumentIds, mode }`, status unions, and the
     `InstrumentEntry`/`SongEntry` catalog types). Store in `src/store.ts` with `latestFrame`,
     `connectionStatus`, `audioStatus`, `selection` slices and actions (navigation moved to the hash
     router, so there is no `view` slice). Temporary `DebugPanel` renders status + selection. Engine
@@ -239,8 +237,10 @@ lanes with the same dependency can run simultaneously.
   - *Result:* Static catalog in `src/data/catalog.ts` using the frozen `InstrumentEntry`/`SongEntry`
     types (no network calls). Instruments: **Drums** (lane 0, MIDI Ch 10), **Bass** (lane 1, Ch 2),
     **Synth / FX** (lane 2, Ch 1), each with a `displayColor`; channels match
-    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Cargo** (`cargo-song`, 128 BPM,
-    key E) and **Free Jam** (engine defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
+    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Freestyle** (`freestyle`, a
+    guitar-led jam where the ML drums + bass are generated to follow the player — `freestyle: true`,
+    no fixed tempo/key target), **Cargo** (`cargo-song`, 128 BPM, key E) and **Free Jam** (engine
+    defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
     `getSongById`, `getInstrumentsByIds` (catalog lane order, drops unknowns), `isValidInstrumentId`,
     `isValidSongId`. `MenuView` renders a temporary read-only list of the catalog (replaced by the
     interactive pickers in Task 5). Verified: `npm run typecheck`, `npm test` (37 passing, incl. 15
@@ -280,6 +280,16 @@ lanes with the same dependency can run simultaneously.
     semantics preserved via `role="radio"`/`aria-pressed`). Tests: pure `readActions`/`stepActions`
     units cover button/axis mapping and rising-edge detection (6 new). Re-verified: `npm run
     typecheck`, `npm test` (55 passing), and `npm run build` all green.
+  - *Enhancement (song option + difficulty mode):* Added a **Freestyle** catalog entry (guitar-led
+    jam, `freestyle: true`; see Task 4). Added a per-song **difficulty mode** step
+    (`beginner | experienced`) stored on `SessionSelection.mode`: after a real song is picked the
+    Menu shows a "Mode" card group (single-select radios, in the controller focus ring between songs
+    and instruments); Start stays disabled until a mode is chosen. **Freestyle skips the mode step**
+    and can start immediately. `setSong` clears `mode` so it is re-chosen per song; persistence
+    sanitizes `mode` to the two valid values. The actual beginner chord-diagram / approaching-timing-
+    circle Visualizer rendering is a later task; this change only establishes the data model + menu
+    UI. Re-verified: `npm run typecheck`, `npm test` (176 passing), and `npm run build` all green on
+    branch `feat/menu-freestyle-song`.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 
@@ -380,8 +390,10 @@ lanes with the same dependency can run simultaneously.
     (`src/visualizer/SessionOverlay.tsx`, wired into `VisualizerView` above the stage) renders the
     song title + reference BPM/key vs live values (color-coded match) and a lane legend with each
     instrument's `displayColor` and MIDI channel label; with no selection it shows "Free Session" and
-    all lanes. `Fretboard` now filters its band gems through `filterEventsBySelection`, so deselected
-    instruments disappear from the board. Verified: `npm run typecheck`, `npm test` (148 passing,
+    all lanes. For a **freestyle** song the overlay shows live BPM/key without a reference target plus
+    a "Guitar leads · band follows" tagline. `Fretboard` now filters its band gems through
+    `filterEventsBySelection`, so deselected instruments disappear from the board. Verified: `npm run
+    typecheck`, `npm test` (148 passing,
     incl. 15 `selectionView` + 4 `SessionOverlay` tests), and `npm run build` all green on branch
     `feat/visualizer-next`.
 
@@ -415,7 +427,7 @@ lanes with the same dependency can run simultaneously.
 
 ### Documentation task (repo rule compliance)
 
-- [ ] **Task 11: Keep this doc and the index synchronized.**
+- [x] **Task 11: Keep this doc and the index synchronized.** ✅ *Done (Integration).*
   - *Lane:* Integration. *Depends on:* Task 10. *Parallel with:* none.
   - *Objective:* As the React visualizer is implemented, keep this file accurate (stack, how it
     consumes the WebSocket/Web Audio contracts, how to run it alongside the engine including the
@@ -426,6 +438,17 @@ lanes with the same dependency can run simultaneously.
     convention.
   - *Tests:* N/A (docs) — verify links resolve and the schema matches the code.
   - *Demo:* A new contributor can run engine + visualizer from this doc alone.
+  - *Result:* Synced the doc with the shipped code: §2 now states that **track E reads
+    `CyberJam_Band` via the Web MIDI API (input-only)** rather than treating MIDI as reference-only;
+    §6 "Running" dropped the stale "Sprint 0 only" note, switched the dev-server example to **Fish**,
+    documents the status-bar **Enable Audio** / **Connect Band MIDI** actions, and adds **§6.1
+    engine-less testing** via the `?mock` flag (`http://localhost:5173/?mock#/visualizer`, backed by
+    `src/dev/mockFeed.ts`); §7 fixed the stale branch example and noted the input-only MIDI + mock
+    option. The [`docs/README.md`](./README.md) index entry was extended to mention the Web MIDI
+    (`CyberJam_Band`) input. Verified: all intra-doc links point to existing files
+    (`contracts-and-apis.md`, `audio-and-routing.md`, `README.md`, `../AGENTS.md`); the telemetry
+    schema in §2.1 matches `src/types.ts` `TelemetryFrame`; ports/labels (`ws://127.0.0.1:8080`,
+    `"CyberJam Visual Audio"`, `CyberJam_Band`) match `src/config.ts`; `npm test` 169 passing.
 
 ### Extension track E — Visualizer Experience (band ribbon, Adrian, flow)
 
@@ -545,28 +568,71 @@ What landed (no engine change; all additive):
 
 ---
 
+### Beginner mode — chord coach + osu!-style approach circle ✅ *Done.*
+
+Shown in the Visualizer only when `selection.mode === "beginner"` (Experienced shows the standard
+view). Added after the per-song difficulty-mode menu step.
+
+- **Chord diagrams** (`src/visualizer/ChordDiagram.tsx`): a clean SVG fretboard for the current
+  bar's chord — six strings (low-E first), fret wires, a thick nut, open/muted `O`/`X` markers above
+  the nut, and numbered finger dots — plus a dimmed **preview of the next chord** so the player can
+  prepare. Chord shapes + per-song progressions live in `src/visualizer/chords.ts`
+  (`cargo-song` → Em–C–G–D, `free-jam` → E–A–D–A, default fallback otherwise; the progression loops
+  per bar).
+- **Approach circle** (`src/visualizer/BeginnerCoach.tsx`): a static target ring with a shrinking
+  outer ring that contracts in time with the song's **reference BPM in 4/4** and converges exactly
+  on **Beat 1** of each bar. Driven by a local beat clock (`src/visualizer/beatClock.ts`) off a
+  `RenderLoop`, writing the radius straight to the SVG via a ref (no per-frame React render). On each
+  bar boundary the progression advances and the circle resets.
+- **Timing feedback replaces an audio cue:** when the player strums (telemetry `onset`), the target
+  ring flashes **green** (perfect/good), **yellow** (ok), or **red** (miss) based on the strum's
+  absolute error to Beat 1, using tempo-scaled windows (`hitWindowsForBpm`).
+- Timing source decision: the circle is driven by a **local clock from the song BPM** (deterministic,
+  leads the player, works engine-less under `?mock`) rather than the engine's player-derived
+  `bar`/`beat` (which are 0 while idle and would *follow* the player).
+- Tests: pure `beatClock` math (11 — tempo, bar phase, approach fraction, signed error, verdicts) and
+  `chords` (8 — library integrity, progression lookup, bar looping), plus a `ChordDiagram` render
+  test (3). Full suite **198 green**; `typecheck` + `build` green.
+
+---
+
+### Removed the player-facing fretboard ribbon ✅ *Done.*
+
+The horizontal 6-string fretboard rendered the **ML band's** MIDI (drums/bass gems), not the
+player's guitar, and required a manual "Connect Band MIDI" step. The right-side **NotePitchPanel**
+already shows the player's detected note (name, pitch marker, trail, onset pulse) from telemetry, so
+the fretboard duplicated no player feedback and only added clutter + a manual connect. It was
+**removed from `VisualizerView`**, along with the `useBandMidi` hook usage and the "Connect Band
+MIDI" button; `StatusBar` gained a `showMidi` prop (passed `false` here) so no dangling "Band MIDI
+off" pill or guidance remains. The band-MIDI data layer (`midi/band.ts`, `useBandMidi`,
+`Fretboard.tsx`, store `bandEvents`) and its tests are retained for possible reuse but are no longer
+wired into the view. Full suite **200 green**; `typecheck` + `build` green.
+
+---
+
 ## 6. Running
 
 > [!NOTE]
-> Sprint 0 (shell + data layer) is implemented. Live telemetry/audio arrive in Tasks 3/6.
+> The full subsystem is implemented (Sprint 0 shell/data layer, Lane B Menu, Lane C Visualizer,
+> integration Tasks 9–10, and Extension track E). Live telemetry/audio/MIDI require the engine;
+> see the **engine-less** option below to exercise the UI without it.
 
-Start the Python engine with the virtual audio source so the browser can capture live audio (on the
-CachyOS install machine; Fish shell):
+Start the React visualizer dev server on the installation workstation (Terminal 1; Fish shell; use
+the Bash/PowerShell equivalent elsewhere):
 
 ```fish
-# Terminal 1 — engine with the visual audio virtual source
-pw-jack .venv/bin/python run_session.py --pipewire-loopback
-```
-
-Start the React visualizer dev server (PowerShell shown for the Windows dev workstation; use the
-equivalent in Fish/Bash):
-
-```powershell
 # Terminal 2 — React visualizer (dev server)
 cd visualizer
 npm install
 npm run dev
 ```
+
+The dev script starts the loopback-only session-control service on `127.0.0.1:8765` alongside Vite.
+Pressing **Start Session** starts the PipeWire virtual source using
+`scripts/setup_pipewire_loopback.sh`, then launches `./start_cyberjam.sh` (the supported in-process
+pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). The virtual source and engine are intentionally left running if browser windows close. Use **Stop
+Session** in the Menu to gracefully stop the engine, RNN worker, and virtual source together. Stopping
+the dev server stops only the control service.
 
 **Two-screen workflow:** Vite prints a local URL (default `http://localhost:5173`). Open the root
 URL (`http://localhost:5173/`) once — the launcher **automatically opens two windows**, the Menu
@@ -579,15 +645,35 @@ If the browser blocks the automatic popups, the launcher shows an **"Open both s
 one click (a user gesture) opens them. Allowing popups for `localhost` makes it fully automatic.
 Both windows run from the same dev-server instance and sync the `selection` live over
 BroadcastChannel; a change in the Menu window appears immediately in the Visualizer window. Each
-window connects to `ws://127.0.0.1:8080` for telemetry and prompts to enable audio from the
-`"CyberJam Visual Audio"` device.
+window connects to `ws://127.0.0.1:8080` for telemetry; the Visualizer's status bar exposes
+**Enable Audio** (captures the `"CyberJam Visual Audio"` device — needs a user gesture per the
+browser autoplay policy) and **Connect Band MIDI** (reads `CyberJam_Band` via Web MIDI).
+
+### 6.1 Engine-less testing (no Python engine)
+
+The data layer degrades gracefully when the engine is absent: the status bar shows
+`Engine offline` / `No audio device` / `No band port` with actionable hints, and nothing crashes.
+To also **animate** the Visualizer without an engine, append the `?mock` flag — a dev-only feed
+(`src/dev/mockFeed.ts`) synthesizes telemetry frames and band MIDI straight into the store:
+
+```fish
+# Dev server already running (npm run dev); open the Visualizer with the mock feed:
+# http://localhost:5173/?mock#/visualizer
+```
+
+Mock mode drives note visuals, the fretboard ribbon, the session overlay (lanes + BPM/key
+reference), and the HUD/rock-meter. The live **waveform** still needs a real audio input device, so
+it stays flat under mock mode unless you click **Enable Audio** and pick any microphone. The flag
+is inert without it and is excluded from normal use and production builds.
 
 ---
 
 ## 7. Repository Rule Notes
 
 - All work happens on a feature branch per [`AGENTS.md`](../AGENTS.md) (e.g.,
-  `feat/react-visualizer`).
-- The Python engine is never modified.
+  `feat/visualizer-next`); never commit to `main`.
+- The Python engine is never modified; the app only consumes documented contracts.
 - Raw UDP `:13000` is deliberately excluded (not browser-accessible).
 - Live audio requires the engine launched with `--pipewire-loopback`.
+- Band MIDI is read **input-only** via the Web MIDI API (`CyberJam_Band`); no new port is opened.
+- The UI can be exercised without the engine via the `?mock` dev feed (§6.1).

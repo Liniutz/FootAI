@@ -1,15 +1,16 @@
-/** Spec Task 9 tests: SessionOverlay renders selection + reference overlays. */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen, act } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { SessionOverlay } from "./SessionOverlay";
-import { useVisualizerStore, INITIAL_SELECTION } from "../store";
+import { INITIAL_SELECTION, useVisualizerStore } from "../store";
 import type { TelemetryFrame } from "../types";
+
+afterEach(cleanup);
 
 function frame(partial: Partial<TelemetryFrame> = {}): TelemetryFrame {
   return {
     timestamp: 1,
     bpm: 0,
-    detected_pitch: { hz: 0, note: "N/A", midi: 0, key: "" },
+    detected_pitch: { hz: 0, note: "N/A", midi: 0, key: "N/A" },
     rms: 0,
     spectral_centroid_hz: 0,
     onset: false,
@@ -17,74 +18,45 @@ function frame(partial: Partial<TelemetryFrame> = {}): TelemetryFrame {
   };
 }
 
-function resetStore() {
-  useVisualizerStore.setState({
-    selection: INITIAL_SELECTION,
-    latestFrame: null,
-  });
-}
+beforeEach(() => useVisualizerStore.setState({ selection: INITIAL_SELECTION, latestFrame: null }));
 
-describe("SessionOverlay", () => {
-  beforeEach(resetStore);
-  afterEach(cleanup);
-
-  it("shows a neutral header and all lanes with no selection", () => {
-    render(<SessionOverlay />);
-    expect(screen.getByTestId("session-song-title")).toHaveTextContent(
-      "Free Session",
-    );
-    expect(screen.getByTestId("session-lane-drums")).toBeInTheDocument();
-    expect(screen.getByTestId("session-lane-bass")).toBeInTheDocument();
-    expect(screen.getByTestId("session-lane-synth-fx")).toBeInTheDocument();
-  });
-
-  it("renders only selected lanes and the chosen song title", () => {
-    act(() => {
-      useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums", "bass"] },
-      });
+describe("TV live HUD", () => {
+  it("shows the selected song, score, and live BPM/key without band lanes", () => {
+    useVisualizerStore.setState({
+      selection: { songId: "cargo-song", instrumentIds: [], mode: "experienced" },
+      latestFrame: frame({ bpm: 128, detected_pitch: { hz: 82, note: "E2", midi: 40, key: "E" } }),
     });
     render(<SessionOverlay />);
-
     expect(screen.getByTestId("session-song-title")).toHaveTextContent("Cargo");
-    expect(screen.getByTestId("session-lane-drums")).toBeInTheDocument();
-    expect(screen.getByTestId("session-lane-bass")).toBeInTheDocument();
-    expect(screen.queryByTestId("session-lane-synth-fx")).not.toBeInTheDocument();
+    expect(screen.getByTestId("session-bpm")).toHaveTextContent("128");
+    expect(screen.getByTestId("session-key")).toHaveTextContent("E");
+    expect(screen.getByTestId("score-points")).toBeInTheDocument();
+    expect(screen.queryByText(/Drums|Bass|Synth/i)).not.toBeInTheDocument();
   });
 
-  it("shows reference BPM/key vs live values and flags a match", () => {
-    act(() => {
-      useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums"] },
-        latestFrame: frame({
-          bpm: 128,
-          detected_pitch: { hz: 82, note: "E2", midi: 40, key: "E" },
-        }),
-      });
+  it("shows the Play 4 bars popup for Freestyle before lock and closes once locked", () => {
+    useVisualizerStore.setState({
+      selection: { songId: "freestyle", instrumentIds: [], mode: null },
+      latestFrame: null,
     });
-    render(<SessionOverlay />);
-
-    const bpm = screen.getByTestId("session-bpm");
-    const key = screen.getByTestId("session-key");
-    expect(bpm).toHaveTextContent("128");
-    expect(bpm).toHaveTextContent("/ 128");
-    expect(bpm.className).toContain("session-ref--match");
-    expect(key).toHaveTextContent("E");
-    expect(key.className).toContain("session-ref--match");
-  });
-
-  it("updates when the selection changes", () => {
     const { rerender } = render(<SessionOverlay />);
-    expect(screen.getByTestId("session-lane-synth-fx")).toBeInTheDocument();
+    expect(screen.getByTestId("freestyle-prompt-backdrop")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Freestyle groove setup" })).toHaveTextContent("Play 4 bars");
 
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: null, instrumentIds: ["drums"] },
+        latestFrame: frame({ demo_phase: "capture", demo_prompt: "Capturing 2/4 bars…" }),
       });
     });
     rerender(<SessionOverlay />);
+    expect(screen.getByTestId("freestyle-prompt-status")).toHaveTextContent("Capturing 2/4 bars…");
 
-    expect(screen.getByTestId("session-lane-drums")).toBeInTheDocument();
-    expect(screen.queryByTestId("session-lane-bass")).not.toBeInTheDocument();
+    act(() => {
+      useVisualizerStore.setState({
+        latestFrame: frame({ demo_phase: "locked", demo_prompt: "Locked: 126 BPM, E" }),
+      });
+    });
+    rerender(<SessionOverlay />);
+    expect(screen.queryByTestId("freestyle-prompt-backdrop")).not.toBeInTheDocument();
   });
 });

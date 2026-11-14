@@ -2,7 +2,7 @@
 
 ## 1. Visual Telemetry WebSocket (`ws://127.0.0.1:8080`)
 
-Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual clients (TouchDesigner / React).
+Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual clients (TouchDesigner / React). The React Menu and TV windows additionally mirror the validated frame through the local browser `BroadcastChannel` (`cyberjam-visualizer`), alongside live selection synchronization. The server maps internal `MusicalState` fields (`pitch_hz`, `note`, `midi_note`, `key`) into the stable nested `detected_pitch` visualizer contract and supplies `timestamp`; legacy internal fields remain in each frame for existing local consumers.
 
 > **Built-in Live Monitor GUI:** Open [`scripts/monitor_gui.html`](../scripts/monitor_gui.html) in a browser (`xdg-open scripts/monitor_gui.html`) to view live notes, chromatic pitch class, BPM, RMS, spectral centroid, and onset flashes in real time.
 
@@ -22,7 +22,9 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
   },
   "rms": 0.08412,
   "spectral_centroid_hz": 1420.55,
-  "onset": true
+  "onset": true,
+  "demo_phase": "capture",
+  "demo_prompt": "Play 4 bars (16 measures) — I'm learning your groove."
 }
 ```
 
@@ -40,6 +42,16 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 | `rms` | `float` | Linear RMS amplitude (`0.0` – `1.0`) |
 | `spectral_centroid_hz` | `float` | Spectral centroid in Hz |
 | `onset` | `bool` | `true` if an onset occurred since the previous 50ms broadcast (an onset not consumed within `0.25s` expires, so a newly connected client never receives a stale one) |
+| `detected_bpm` | `bool` | `true` once a tempo has been measured from the live guitar (latched until `> 3s` silence) |
+| `detected_key` | `bool` | `true` once a pitch class has been measured from the live guitar (latched until `> 3s` silence) |
+| `band_active` | `bool` | `true` while the backing band is playing; set `false` after `CYBERJAM_SILENCE_TIMEOUT` (default `6s`) without guitar input |
+| `pitch_classes` | `int[]` | Rolling histogram (last 64 detections) of pitch classes `0`–`11`, used to infer key and major/minor mode |
+| `demo_phase` | `string` | Guided capture state: `"wait"`, `"capture"` or `"locked"` (empty when off); automatically enabled by the Menu's Freestyle session |
+| `demo_prompt` | `string` | Human-readable prompt/status; Freestyle requests 4 bars (16 measures) by default, then reports the locked tempo and key |
+
+> The bundled live session (`scripts/run_inprocess_session.py`) keeps the backing band
+> completely silent until **both** `detected_bpm` and `detected_key` are `true`, then locks
+> in and plays continuously.
 
 ---
 
