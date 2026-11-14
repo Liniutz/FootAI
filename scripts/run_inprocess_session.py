@@ -679,6 +679,7 @@ class InProcessCyberJamSession:
                             "mode": mode,
                             "rms": float(snapshot.get("rms") or 0.0),
                             "temperature": RNN_TEMPERATURE,
+                            "creativity": CREATIVITY,
                             "bars": self._phrase_bars,
                             "taps": [i for i, hit in enumerate(self._taps) if hit],
                             "seed": self._rnn_bars + self._fallback_bars,
