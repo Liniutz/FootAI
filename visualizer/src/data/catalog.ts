@@ -51,6 +51,16 @@ export const INSTRUMENTS: readonly InstrumentEntry[] = [
 
 export const SONGS: readonly SongEntry[] = [
   {
+    id: "freestyle",
+    title: "Freestyle",
+    // No fixed target — the guitar leads and the ML band follows it. The
+    // reference values are only sensible defaults for the Visualizer and are
+    // not shown as a target in freestyle mode.
+    referenceBpm: DEFAULT_BPM,
+    referenceKey: DEFAULT_KEY,
+    freestyle: true,
+  },
+  {
     id: "cargo-song",
     title: "Cargo",
     referenceBpm: 128,

@@ -329,6 +329,16 @@
   opacity: 0.6;
 }
 
+.session-ref__tag {
+  align-self: center;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.85;
+}
+
 .session-ref--match {
   border-color: #38d39f;
   color: #38d39f;

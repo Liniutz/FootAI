@@ -81,6 +81,13 @@ export interface SongEntry {
   referenceBpm: number;
   /** Reference key for comparison against detected `key`. */
   referenceKey: string;
+  /**
+   * Freestyle jam mode: the guitar leads and the ML band (drums + bass) is
+   * generated to follow it, so there is no fixed target tempo/key. When true,
+   * the Visualizer shows live BPM/key without a reference comparison.
+   * Optional and defaults to false for regular songs.
+   */
+  freestyle?: boolean;
 }
 
 // ---------------------------------------------------------------------------

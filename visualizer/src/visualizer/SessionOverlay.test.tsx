@@ -87,4 +87,34 @@ describe("SessionOverlay", () => {
     expect(screen.getByTestId("session-lane-drums")).toBeInTheDocument();
     expect(screen.queryByTestId("session-lane-bass")).not.toBeInTheDocument();
   });
+
+  it("shows live BPM/key without a reference target for Freestyle", () => {
+    act(() => {
+      useVisualizerStore.setState({
+        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"] },
+        latestFrame: frame({
+          bpm: 134,
+          detected_pitch: { hz: 220, note: "A3", midi: 57, key: "A" },
+        }),
+      });
+    });
+    render(<SessionOverlay />);
+
+    expect(screen.getByTestId("session-song-title")).toHaveTextContent(
+      "Freestyle",
+    );
+    const bpm = screen.getByTestId("session-bpm");
+    const key = screen.getByTestId("session-key");
+    // Live values shown…
+    expect(bpm).toHaveTextContent("134");
+    expect(key).toHaveTextContent("A");
+    // …but no "/ reference" target and no match/off coloring.
+    expect(bpm).not.toHaveTextContent("/");
+    expect(key).not.toHaveTextContent("/");
+    expect(bpm.className).toContain("session-ref--none");
+    // The freestyle tagline is present.
+    expect(screen.getByTestId("session-freestyle-tag")).toHaveTextContent(
+      /band follows/i,
+    );
+  });
 });

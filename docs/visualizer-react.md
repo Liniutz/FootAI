@@ -239,8 +239,10 @@ lanes with the same dependency can run simultaneously.
   - *Result:* Static catalog in `src/data/catalog.ts` using the frozen `InstrumentEntry`/`SongEntry`
     types (no network calls). Instruments: **Drums** (lane 0, MIDI Ch 10), **Bass** (lane 1, Ch 2),
     **Synth / FX** (lane 2, Ch 1), each with a `displayColor`; channels match
-    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Cargo** (`cargo-song`, 128 BPM,
-    key E) and **Free Jam** (engine defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
+    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Freestyle** (`freestyle`, a
+    guitar-led jam where the ML drums + bass are generated to follow the player — `freestyle: true`,
+    no fixed tempo/key target), **Cargo** (`cargo-song`, 128 BPM, key E) and **Free Jam** (engine
+    defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
     `getSongById`, `getInstrumentsByIds` (catalog lane order, drops unknowns), `isValidInstrumentId`,
     `isValidSongId`. `MenuView` renders a temporary read-only list of the catalog (replaced by the
     interactive pickers in Task 5). Verified: `npm run typecheck`, `npm test` (37 passing, incl. 15
@@ -380,8 +382,10 @@ lanes with the same dependency can run simultaneously.
     (`src/visualizer/SessionOverlay.tsx`, wired into `VisualizerView` above the stage) renders the
     song title + reference BPM/key vs live values (color-coded match) and a lane legend with each
     instrument's `displayColor` and MIDI channel label; with no selection it shows "Free Session" and
-    all lanes. `Fretboard` now filters its band gems through `filterEventsBySelection`, so deselected
-    instruments disappear from the board. Verified: `npm run typecheck`, `npm test` (148 passing,
+    all lanes. For a **freestyle** song the overlay shows live BPM/key without a reference target plus
+    a "Guitar leads · band follows" tagline. `Fretboard` now filters its band gems through
+    `filterEventsBySelection`, so deselected instruments disappear from the board. Verified: `npm run
+    typecheck`, `npm test` (148 passing,
     incl. 15 `selectionView` + 4 `SessionOverlay` tests), and `npm run build` all green on branch
     `feat/visualizer-next`.
 

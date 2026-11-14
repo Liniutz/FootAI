@@ -129,7 +129,9 @@ export function MenuView() {
                 >
                   <span className="rs-card__title">{song.title}</span>
                   <span className="rs-card__meta">
-                    {song.referenceBpm} BPM · Key {song.referenceKey}
+                    {song.freestyle
+                      ? "Jam freely — drums & bass follow your guitar"
+                      : `${song.referenceBpm} BPM · Key ${song.referenceKey}`}
                   </span>
                   {selected && <span className="rs-card__badge">Selected</span>}
                 </button>
