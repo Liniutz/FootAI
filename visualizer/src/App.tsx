@@ -16,6 +16,8 @@ import { openBothScreens, type OpenWindowsResult } from "./windows";
 import { MenuView } from "./views/MenuView";
 import { VisualizerView } from "./views/VisualizerView";
 import { isMockEnabled, startMockFeed } from "./dev/mockFeed";
+import { loadSelection } from "./menu/persistence";
+import { useVisualizerStore } from "./store";
 import "./App.css";
 
 function Launcher() {
@@ -64,6 +66,14 @@ function Launcher() {
 
 export function App() {
   const route = useRoute();
+
+  // Seed the persisted selection into the store once on mount, for EVERY route
+  // (including a directly-opened Visualizer window). The Menu still persists on
+  // change; this just rehydrates so #/visualizer isn't stuck on the empty
+  // default selection. Runs before sync so local state is ready.
+  useEffect(() => {
+    useVisualizerStore.getState().setSelection(loadSelection());
+  }, []);
 
   // Keep this window's selection synced with the other window.
   useSelectionSync();

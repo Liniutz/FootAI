@@ -2,6 +2,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, cleanup, act } from "@testing-library/react";
 import App from "./App";
+import { useVisualizerStore, INITIAL_SELECTION } from "./store";
+import { SELECTION_STORAGE_KEY } from "./menu/persistence";
 
 function setHash(hash: string) {
   act(() => {
@@ -104,5 +106,26 @@ describe("App shell (routing)", () => {
     expect(
       screen.getByRole("region", { name: "Visualizer" }),
     ).toBeInTheDocument();
+  });
+
+  it("rehydrates the persisted selection on a directly-opened Visualizer window", () => {
+    vi.spyOn(window, "open").mockReturnValue(FAKE_WINDOW);
+    localStorage.setItem(
+      SELECTION_STORAGE_KEY,
+      JSON.stringify({
+        songId: "cargo-song",
+        instrumentIds: ["drums"],
+        mode: "beginner",
+      }),
+    );
+    useVisualizerStore.setState({ selection: INITIAL_SELECTION });
+
+    setHash("#/visualizer");
+    render(<App />);
+
+    const selection = useVisualizerStore.getState().selection;
+    expect(selection.songId).toBe("cargo-song");
+    expect(selection.mode).toBe("beginner");
+    localStorage.clear();
   });
 });
