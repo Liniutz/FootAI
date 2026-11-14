@@ -52,8 +52,12 @@ STEPS_PER_BAR = 16
 KICK = 36
 SNARE = 38
 CLOSED_HAT = 42
+LOW_TOM = 45
 OPEN_HAT = 46
+MID_TOM = 47
 CRASH = 49
+HIGH_TOM = 50
+RIDE = 51
 
 
 def simplify_drums(events: list[dict], bars: int) -> list[dict]:
@@ -89,20 +93,34 @@ def simplify_drums(events: list[dict], bars: int) -> list[dict]:
     return simplified
 
 
-def cargo_drums(events: list[dict], bars: int, creativity: float = 0.5) -> list[dict]:
+KICK_PATTERNS: tuple[tuple[int, ...], ...] = (
+    (0, 8),
+    (0, 8, 10),   # push on the "and of 3"
+    (0, 6, 8),    # pickup into 3
+    (0, 8, 14),   # late pickup into the next bar
+    (0, 6, 11),   # syncopated
+)
+
+
+def cargo_drums(
+    events: list[dict], bars: int, creativity: float = 0.5, seed: int = 0
+) -> list[dict]:
     """Shape a generated groove into Cargo's straight-ahead rock feel.
 
     Cargo's drummer (Romanian rock: "Doi pași", "Aproape de voi") plays a driving
-    8th-note hat, kick on 1 and 3 with an occasional push on the "and" of 3, a
+    8th-note hat, kick on 1 and 3 with an occasional push on the "and of 3", a
     hard backbeat on 2 and 4, a ghost note before the backbeat, a crash on the
     phrase downbeat and an open hat closing the phrase. No double-pedal runs and
     at most three kicks per bar.
 
-    ``creativity`` (0..1) adds tasteful variation without breaking the shape:
-    extra kick pushes, ghost notes, 16th-note hat pickups and extra open hats.
+    ``creativity`` (0..1) rotates the kick pattern per bar, adds ghost notes,
+    16th-note hat bursts, open hats, ride bars, extra crashes and a tom fill at
+    the end of 4-bar phrases. Kicks are never closer than an 8th note apart.
     """
     creativity = max(0.0, min(1.0, float(creativity)))
+    rng = random.Random(seed)
     shaped: list[dict] = []
+
     for bar in range(bars):
         bar_events = [e for e in events if int(e.get("bar", 0)) == bar]
 
@@ -114,26 +132,45 @@ def cargo_drums(events: list[dict], bars: int, creativity: float = 0.5) -> list[
         kicks = {int(e["step"]) for e in bar_events if int(e.get("note", 0)) == 36}
         snares = {int(e["step"]) for e in bar_events if int(e.get("note", 0)) == 38}
 
-        # Driving closed hats on every 8th, accents from the model.
+        fill = (bar % 4 == 3) and creativity > 0.35
+        ride_bar = creativity > 0.55 and bar % 8 == 5
+
+        # Hats (or ride) on every 8th, accents from the model.
+        hat_note = RIDE if ride_bar else CLOSED_HAT
         for step in range(0, STEPS_PER_BAR, 2):
-            fallback = 94 if step % 4 == 0 else 74
-            velocity = max(44, min(106, hats.get(step, fallback)))
-            shaped.append(
-                {"bar": bar, "step": step, "note": CLOSED_HAT, "velocity": velocity}
-            )
+            if fill and step >= 12:
+                continue  # leave the end of the bar for the fill
+            fallback = (94 if step % 4 == 0 else 74) + (6 if ride_bar else 0)
+            velocity = max(44, min(108, hats.get(step, fallback)))
+            shaped.append({"bar": bar, "step": step, "note": hat_note, "velocity": velocity})
 
-        # Occasional 16th-note hat pickup (creativity only).
-        if random.random() < creativity * 0.35:
-            pickup = random.choice((3, 7, 11, 13))
-            shaped.append(
-                {"bar": bar, "step": pickup, "note": CLOSED_HAT, "velocity": random.randint(38, 62)}
-            )
+        # 16th-note hat bursts / pickups.
+        if not ride_bar:
+            for _ in range(int(round(creativity * 2))):
+                if rng.random() < creativity * 0.5:
+                    pickup = rng.choice((1, 3, 5, 7, 9, 11, 13))
+                    if fill and pickup >= 12:
+                        continue
+                    shaped.append(
+                        {
+                            "bar": bar,
+                            "step": pickup,
+                            "note": CLOSED_HAT,
+                            "velocity": rng.randint(36, 64),
+                        }
+                    )
 
-        # Kick: 1 and 3, plus the "and of 3" push when the model played it,
-        # or now and then when feeling creative.
-        kick_steps = [0, 8]
-        if 10 in kicks or random.random() < creativity * 0.5:
-            kick_steps.append(10)
+        # Kick: rotate patterns with creativity, honouring the model's push.
+        if creativity <= 0.0:
+            kick_steps = [0, 8]
+        else:
+            candidates = list(KICK_PATTERNS)
+            if 10 in kicks:
+                candidates.insert(0, (0, 8, 10))
+            kick_steps = list(rng.choice(candidates))
+        kick_steps = sorted(set(kick_steps))[:3]
+        if fill:
+            kick_steps = [s for s in kick_steps if s < 12] or [0]
         for step in kick_steps:
             shaped.append(
                 {"bar": bar, "step": step, "note": KICK, "velocity": 114 if step == 0 else 100}
@@ -143,18 +180,39 @@ def cargo_drums(events: list[dict], bars: int, creativity: float = 0.5) -> list[
         shaped.append({"bar": bar, "step": 4, "note": SNARE, "velocity": 108})
         shaped.append({"bar": bar, "step": 12, "note": SNARE, "velocity": 116})
 
-        # Ghost note just before the backbeat (a Cargo signature).
-        ghost = 7 if 7 in snares else (15 if 15 in snares else None)
-        if ghost is None and random.random() < creativity * 0.6:
-            ghost = random.choice((7, 15))
-        if ghost is not None:
-            shaped.append({"bar": bar, "step": ghost, "note": SNARE, "velocity": 34})
+        # Ghost notes before the backbeat (a Cargo signature).
+        ghosts = {7 if 7 in snares else 15} if (7 in snares or 15 in snares) else set()
+        for _ in range(int(round(creativity * 2))):
+            if rng.random() < creativity * 0.55:
+                ghosts.add(rng.choice((3, 7, 11, 15)))
+        for step in sorted(ghosts):
+            if fill and step >= 12:
+                continue
+            shaped.append({"bar": bar, "step": step, "note": SNARE, "velocity": 34})
 
-        # Crash on the phrase downbeat, open hat closing the phrase.
+        # Crash on the phrase downbeat; extra crash when feeling it.
         if bar % 4 == 0:
             shaped.append({"bar": bar, "step": 0, "note": CRASH, "velocity": 98})
-        if bar % 4 == 3 or random.random() < creativity * 0.4:
+        elif creativity > 0.6 and rng.random() < creativity * 0.4:
+            shaped.append({"bar": bar, "step": 0, "note": CRASH, "velocity": 88})
+
+        # Open hat closing the phrase.
+        if (bar % 4 == 3) or rng.random() < creativity * 0.4:
             shaped.append({"bar": bar, "step": 14, "note": OPEN_HAT, "velocity": 80})
+
+        # Tom fill across the last beat of a 4-bar phrase.
+        if fill:
+            shape = rng.choice(
+                (
+                    ((12, SNARE), (13, HIGH_TOM), (14, MID_TOM), (15, LOW_TOM)),
+                    ((12, HIGH_TOM), (13, MID_TOM), (14, LOW_TOM), (15, LOW_TOM)),
+                    ((13, SNARE), (14, MID_TOM), (15, LOW_TOM)),
+                )
+            )
+            for index, (step, note) in enumerate(shape):
+                shaped.append(
+                    {"bar": bar, "step": step, "note": note, "velocity": 96 + index * 8}
+                )
 
     shaped.sort(key=lambda e: (e["bar"], e["step"], e["note"]))
     return shaped
@@ -584,7 +642,11 @@ def main() -> int:
                 # from GrooVAE, then shaped to Cargo's straight-ahead rock template.
                 if source == "cargo" and "drums" in bundles:
                     seed_events = bundles["drums"].generate(
-                        _drum_primer(bpm), bpm, temperature, seed + 1, groove_bars
+                        _drum_primer(bpm),
+                        bpm,
+                        temperature + creativity * 0.4,
+                        seed + 1,
+                        groove_bars,
                     )
                     taps = tapify(seed_events, groove_bars)
 
@@ -592,6 +654,7 @@ def main() -> int:
                     groovae.generate(taps, bpm, temperature, seed + 1, creativity),
                     groove_bars,
                     creativity,
+                    seed + 7,
                 )
                 response["bars"] = groove_bars
             elif "drums" in bundles:
