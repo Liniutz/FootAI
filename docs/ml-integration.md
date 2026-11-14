@@ -116,11 +116,14 @@ GrooVAE alone is a generic groove model, so `--models groovae` chains three stag
    pattern. This supplies the *style* (where the kicks and backbeat land).
 2. **Feel from GrooVAE** — that pattern is collapsed (`tapify`) to a 32-step tap grid and fed to
    GrooVAE tap2drum, which returns a humanised performance (micro-timing + velocity accents).
-3. **Cargo template** — `cargo_drums()` re-imposes the band's signature shape: driving 8th-note
-   closed hats (velocities from GrooVAE), kick on 1 and 3 plus the "and of 3" push when the
-   model played it, hard backbeat on 2 and 4, a ghost note before the backbeat, crash on the
-   phrase downbeat and an open hat closing a 4-bar phrase. Never more than three kicks and no
-   double-pedal runs.
+3. **Cargo template** — `cargo_drums()` re-imposes the band's signature shape and, as
+   creativity rises, adds variation:
+   - kick pattern rotates per bar from `KICK_PATTERNS` (`0/8`, `0/8/10`, `0/6/8`, `0/8/14`,
+     `0/6/11`) — never closer than an 8th note apart, never more than three kicks;
+   - hard backbeat on 2 and 4, plus extra ghost snares (3/7/11/15);
+   - 16th-note hat bursts, an occasional ride bar, extra crashes, open hats;
+   - **tom fill** across the last beat of every 4-bar phrase (when creativity > 0.35).
+   At `creativity 0` the template is the plain `kick 0/8 · snare 4/12 · 8th hats` groove.
 
 The bass in this set is `cargo_bass.mag`, so the whole band is Cargo-flavoured with GrooVAE's
 human feel.
