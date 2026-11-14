@@ -55,7 +55,13 @@ OUTPUT_DEVICES = [
     if d.strip()
 ]
 SAMPLE_RATE = 48000
-BLOCK_SIZE = 512
+# Small blocks + low-latency streams are the single biggest win for guitar
+# monitoring delay: 512/default measured ~43 ms per direction, 256/low ~11 ms.
+BLOCK_SIZE = int(os.environ.get("CYBERJAM_BLOCK", "256"))
+STREAM_LATENCY = os.environ.get("CYBERJAM_LATENCY", "low") or None
+# Software monitoring. Disable when the interface's Direct Monitor is on,
+# otherwise you hear the guitar twice (hardware + software) as a slapback.
+PASSTHROUGH = os.environ.get("CYBERJAM_PASSTHROUGH", "1") != "0"
 
 # Mix balance: boost the live guitar, pull the synthesized band back.
 GUITAR_GAIN = float(os.environ.get("CYBERJAM_GUITAR_GAIN", "2.0"))
@@ -113,6 +119,8 @@ SOUNDFONT_PATH = os.environ.get("CYBERJAM_SOUNDFONT", "")
 DRUM_SOUNDFONT = os.environ.get("CYBERJAM_DRUM_SOUNDFONT", "")
 DRUM_KIT = os.environ.get("CYBERJAM_DRUM_KIT", "power")
 DRUM_PRESET = int(os.environ.get("CYBERJAM_DRUM_PRESET", "0"))
+# FluidSynth ALSA device (e.g. "hw:2,0" to match the interface monitors).
+SYNTH_DEVICE = os.environ.get("CYBERJAM_SYNTH_DEVICE", "")
 
 DRUM_KITS: dict[str, int] = {
     "standard": 0,
@@ -229,7 +237,8 @@ class InProcessCyberJamSession:
         self._out_streams: list[tuple[str, sd.OutputStream]] = []
         self._capture_name: str | None = None
         self._monitor_names: list[str] = []
-        self._passthrough_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=8)
+        # Preallocated buffer so the audio callback does not allocate.
+        self._mix_buffer = np.zeros((BLOCK_SIZE * 4, 2), dtype=np.float32)
 
     # ------------------------------------------------------------------ synth
     def _init_synth(self) -> None:
@@ -244,6 +253,7 @@ class InProcessCyberJamSession:
             os.close(devnull)
             try:
                 self.synth = fluidsynth.Synth()
+                self._tune_synth_latency()
                 self.synth.start(driver="alsa")
                 self.synth.set_reverb(0.75, 0.4, 0.8, 0.6)
                 self.synth.set_chorus(2, 0.4, 1.0, 2.0, 0)
@@ -298,6 +308,40 @@ class InProcessCyberJamSession:
         except Exception as exc:  # noqa: BLE001 - never block startup
             logger.error("In-process synth error: %s", exc)
 
+    def _tune_synth_latency(self) -> None:
+        """Shrink FluidSynth's ALSA buffer before the audio thread starts.
+
+        Defaults are 64-frame periods x 16 (~21 ms). 64 x 3 is ~4 ms, which keeps
+        the generated band tight against the guitar. Must run before start().
+        """
+        try:
+            import ctypes
+
+            lib = ctypes.CDLL(fluidsynth.find_libfluidsynth())
+            lib.fluid_settings_setnum.argtypes = [
+                ctypes.c_void_p,
+                ctypes.c_char_p,
+                ctypes.c_double,
+            ]
+            lib.fluid_settings_setnum.restype = ctypes.c_int
+            settings = ctypes.c_void_p(self.synth.settings)
+            lib.fluid_settings_setnum(settings, b"audio.period-size", 64)
+            lib.fluid_settings_setnum(settings, b"audio.periods", 3)
+
+            if SYNTH_DEVICE:
+                lib.fluid_settings_setstr.argtypes = [
+                    ctypes.c_void_p,
+                    ctypes.c_char_p,
+                    ctypes.c_char_p,
+                ]
+                lib.fluid_settings_setstr.restype = ctypes.c_int
+                lib.fluid_settings_setstr(
+                    settings, b"audio.alsa.device", SYNTH_DEVICE.encode()
+                )
+                logger.info("FluidSynth output device: %s", SYNTH_DEVICE)
+        except Exception as exc:  # noqa: BLE001 - latency tuning is best effort
+            logger.debug("Could not tune FluidSynth latency: %s", exc)
+
     def _set_synth_gain(self, gain: float) -> None:
         """Set FluidSynth master gain (this pyfluidsynth build has no setter)."""
         try:
@@ -336,10 +380,15 @@ class InProcessCyberJamSession:
                     samplerate=SAMPLE_RATE,
                     blocksize=BLOCK_SIZE,
                     dtype="float32",
+                    latency=STREAM_LATENCY,
                 )
                 stream.start()
                 self._out_streams.append((sd.query_devices(out_idx)["name"], stream))
-                logger.info("Monitor output open: %s", sd.query_devices(out_idx)["name"])
+                logger.info(
+                    "Monitor output open: %s (%.1f ms)",
+                    sd.query_devices(out_idx)["name"],
+                    stream.latency * 1000.0,
+                )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Monitor output %r unavailable: %s", dev, exc)
 
@@ -352,27 +401,56 @@ class InProcessCyberJamSession:
             samplerate=SAMPLE_RATE,
             blocksize=BLOCK_SIZE,
             dtype="float32",
+            latency=STREAM_LATENCY,
             callback=self._input_callback,
         )
         self._in_stream.start()
         self._capture_name = sd.query_devices(in_idx)["name"]
         self._monitor_names = [name for name, _ in self._out_streams]
-        logger.info("Capture input open: %s", self._capture_name)
+        logger.info(
+            "Capture input open: %s (%.1f ms) | block %.1f ms",
+            self._capture_name,
+            self._in_stream.latency * 1000.0,
+            BLOCK_SIZE / SAMPLE_RATE * 1000.0,
+        )
+        if "(hw:" not in self._capture_name:
+            logger.warning(
+                "Capture is using a PipeWire node (%s). The direct ALSA device is busy, "
+                "and the PipeWire capture path can deliver silence - restart PipeWire "
+                "(systemctl --user restart pipewire wireplumber) if the meter stays at 0.",
+                self._capture_name,
+            )
 
     def _input_callback(self, indata, frames, time_info, status) -> None:
-        """Queue guitar audio for passthrough and feed the DSP engine. Never block."""
+        """Guitar passthrough + DSP feed.
+
+        The block is written straight to the monitor outputs instead of going
+        through a queue: the queue added a full block (~5-11 ms) of latency plus
+        scheduling jitter, and a nested PortAudio write is just a memcpy into the
+        device ring buffer.
+        """
         if status:
             pass
 
-        # Hand the block to the passthrough writer thread (never block here).
-        try:
-            self._passthrough_q.put_nowait(indata.copy())
-        except queue.Full:
-            try:
-                self._passthrough_q.get_nowait()
-                self._passthrough_q.put_nowait(indata.copy())
-            except queue.Empty:
-                pass
+        block = indata
+        if PASSTHROUGH:
+            if GUITAR_GAIN != 1.0:
+                frames_now = indata.shape[0]
+                if frames_now <= self._mix_buffer.shape[0]:
+                    mix = self._mix_buffer[:frames_now]
+                    np.multiply(indata, GUITAR_GAIN, out=mix)
+                    np.clip(mix, -1.0, 1.0, out=mix)
+                    block = mix
+                else:
+                    block = np.clip(indata * GUITAR_GAIN, -1.0, 1.0)
+
+            for _name, stream in self._out_streams:
+                if not stream.active:
+                    continue
+                try:
+                    stream.write(block)
+                except Exception:
+                    pass
 
         # Same block goes to the DSP worker (tempo / key / pitch / RMS).
         # The Scarlett Solo exposes Input 1 (mic) and Input 2 (instrument) as
@@ -383,23 +461,6 @@ class InProcessCyberJamSession:
         else:
             mono = indata[:, 0] if indata.ndim > 1 else indata
         self.dsp.feed_audio(np.ascontiguousarray(mono, dtype=np.float32))
-
-    def _passthrough_loop(self) -> None:
-        """Write queued guitar blocks to every monitor output (off the audio thread)."""
-        while not self._synth_stop.is_set():
-            try:
-                block = self._passthrough_q.get(timeout=0.1)
-            except queue.Empty:
-                continue
-            if GUITAR_GAIN != 1.0:
-                block = np.clip(block * GUITAR_GAIN, -1.0, 1.0)
-            for _name, stream in self._out_streams:
-                if not stream.active:
-                    continue
-                try:
-                    stream.write(block)
-                except Exception:
-                    pass
 
     def _play_test_tone(self) -> None:
         """Short beep on every monitor output so the player can confirm routing."""
@@ -838,7 +899,6 @@ class InProcessCyberJamSession:
 
         self._synth_stop.clear()
         self._play_test_tone()
-        threading.Thread(target=self._passthrough_loop, daemon=True).start()
         self._synth_thread = threading.Thread(target=self._synth_audio_loop, daemon=True)
         self._synth_thread.start()
         threading.Thread(target=self._status_loop, daemon=True).start()
@@ -937,6 +997,22 @@ def _parse_args() -> "argparse.Namespace":
     )
     parser.add_argument("--soundfont", default=SOUNDFONT_PATH, help="Main .sf2 (bass/lead).")
     parser.add_argument(
+        "--synth-device",
+        default=SYNTH_DEVICE,
+        help="ALSA device for FluidSynth output (e.g. hw:2,0 to match the interface).",
+    )
+    parser.add_argument(
+        "--block",
+        type=int,
+        default=BLOCK_SIZE,
+        help="Audio block size in frames (default 256; lower = less latency).",
+    )
+    parser.add_argument(
+        "--no-passthrough",
+        action="store_true",
+        help="Disable software guitar monitoring (use when the interface's Direct Monitor is on).",
+    )
+    parser.add_argument(
         "--list-drum-kits",
         action="store_true",
         help="List the kits available in the soundfont and exit.",
@@ -967,6 +1043,7 @@ def _list_drum_kits(soundfont: str) -> None:
 def main() -> None:
     global RNN_SET, RNN_MODELS_DIR, RNN_ENABLED, LEAD_ENABLED, CREATIVITY, DEMO_MODE, DEMO_BARS
     global SOUNDFONT_PATH, DRUM_SOUNDFONT, DRUM_KIT, DRUM_PRESET
+    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH
 
     args = _parse_args()
 
@@ -990,6 +1067,10 @@ def main() -> None:
     DRUM_SOUNDFONT = args.drum_soundfont or ""
     DRUM_KIT = args.drum_kit
     DRUM_PRESET = max(0, min(127, args.drum_preset))
+    SYNTH_DEVICE = args.synth_device or ""
+    BLOCK_SIZE = max(32, min(2048, args.block))
+    if args.no_passthrough:
+        PASSTHROUGH = False
 
     logger.info("Model set: %s (%s)", RNN_SET, RNN_MODELS_DIR)
     logger.info("Drum kit: %s", DRUM_SOUNDFONT or f"{DRUM_KIT} (bank 128)")
