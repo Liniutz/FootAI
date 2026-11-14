@@ -18,7 +18,7 @@ import { loadSelection, saveSelection } from "../menu/persistence";
 import { routeHref } from "../router";
 import { useGamepad } from "../menu/useGamepad";
 import type { DifficultyMode } from "../types";
-import { startEngineSession } from "../sessionControl";
+import { startEngineSession, stopEngineSession } from "../sessionControl";
 
 /** The selectable difficulty modes (shown once a real song is picked). */
 const MODES: ReadonlyArray<{
@@ -55,7 +55,9 @@ export function MenuView() {
   const [focusIndex, setFocusIndex] = useState(0);
   const [padConnected, setPadConnected] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
+  const [stopMessage, setStopMessage] = useState<string | null>(null);
 
   // The difficulty-mode step applies only to real songs, not Freestyle.
   const showModeStep =
@@ -92,13 +94,24 @@ export function MenuView() {
     if (!canStart || starting) return;
     setStarting(true);
     setStartError(null);
-    const result = await startEngineSession();
+    const result = await startEngineSession(isFreestyleSong(selection.songId) ? "freestyle" : "song");
     if (!result.running) {
       setStartError(result.error ?? "Could not start the CyberJam engine.");
       setStarting(false);
       return;
     }
     window.location.hash = routeHref("visualizer");
+  };
+
+  const stopSession = async () => {
+    if (stopping) return;
+    setStopping(true);
+    setStopMessage(null);
+    const result = await stopEngineSession();
+    setStopping(false);
+    setStopMessage(
+      result.error ?? (result.running ? "Session could not be stopped." : "CyberJam session stopped."),
+    );
   };
 
   // Activate whatever item currently has focus (controller "A" / Enter).
@@ -291,9 +304,18 @@ export function MenuView() {
         );
       })()}
 
-      {startError && (
-        <p className="rs-hint" role="alert">
-          {startError}
+      <button
+        type="button"
+        className="rs-start rs-stop"
+        onClick={() => void stopSession()}
+        disabled={stopping}
+      >
+        {stopping ? "Stopping CyberJam…" : "Stop Session ■"}
+      </button>
+
+      {(startError || stopMessage) && (
+        <p className="rs-hint" role={startError ? "alert" : "status"}>
+          {startError ?? stopMessage}
         </p>
       )}
 

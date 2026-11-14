@@ -35,6 +35,10 @@ export interface TelemetryFrame {
   spectral_centroid_hz: number;
   /** True once per transient (consumed each broadcast). */
   onset: boolean;
+  /** Guided Freestyle capture lifecycle: wait, capture, locked, or empty. */
+  demo_phase?: string;
+  /** Player-facing guided capture prompt. */
+  demo_prompt?: string;
 }
 
 // ---------------------------------------------------------------------------

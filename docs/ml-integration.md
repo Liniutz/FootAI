@@ -79,16 +79,16 @@ scripts/run_inprocess_session.py  --JSON--> scripts/rnn_worker.py
 A guided first-run flow for the installation:
 
 1. **wait** — the band is silent; the session watches for the first guitar note.
-2. **capture** — as soon as you play, the visualizer/terminal prompts *"Now sing or play 2 bars
-   (~4s) — I'm listening for the tempo and key"* and a countdown runs. Nothing is generated yet.
+2. **capture** — as soon as you play, the visualizer/terminal prompts for 4 bars by default
+   (16 measures; approximately 8 seconds at 120 BPM) and a countdown runs. Nothing is generated yet.
 3. **locked** — after the capture window the session freezes the measured BPM and the inferred
    key/mode, logs `Locked: 100 BPM, E minor`, and only then starts the RNN band. From that point
    the tempo and key stay fixed (DSP updates are ignored) so the loops stay in sync with what
    you sang.
 
 ```fish
-./start_cyberjam.sh --demo                 # 2-bar capture
-./start_cyberjam.sh --demo --demo-bars 4   # longer capture window
+./start_cyberjam.sh --demo                 # 4-bar capture by default
+./start_cyberjam.sh --demo --demo-bars 8   # longer capture window
 ```
 
 The prompt is broadcast in `demo_prompt` / `demo_phase` and rendered as a banner in

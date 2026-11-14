@@ -21,12 +21,15 @@ import {
 export function SessionOverlay() {
   const selection = useVisualizerStore((s) => s.selection);
   const frame = useVisualizerStore((s) => s.latestFrame);
-
   const song = selectedSong(selection);
   const lanes = activeLanes(selection);
 
   const liveBpm = frame?.bpm ?? null;
   const detectedKey = frame?.detected_pitch.key ?? null;
+  const demoPrompt = frame?.demo_prompt;
+  const demoPhase = frame?.demo_phase;
+  const freestyleActive = Boolean(song?.freestyle);
+  const promptVisible = freestyleActive && demoPhase !== "locked";
 
   const bpmMatch = song ? compareBpm(liveBpm, song.referenceBpm) : null;
   const keyMatch = song ? compareKey(detectedKey, song.referenceKey) : null;
@@ -50,6 +53,11 @@ export function SessionOverlay() {
             <span className="session-ref__tag" data-testid="session-freestyle-tag">
               Guitar leads · band follows
             </span>
+            {demoPhase === "locked" && (
+              <span className="session-ref__tag" data-testid="freestyle-prompt" data-phase="locked">
+                {demoPrompt || "Guitar leads · band follows"}
+              </span>
+            )}
           </div>
         )}
 
@@ -72,6 +80,25 @@ export function SessionOverlay() {
           </div>
         )}
       </div>
+
+      {freestyleActive && promptVisible && demoPhase !== "locked" && (
+        <div className="freestyle-prompt-backdrop" data-testid="freestyle-prompt-backdrop">
+          <section
+            aria-label="Freestyle groove setup"
+            aria-modal="true"
+            className="freestyle-prompt"
+            data-phase={demoPhase || "wait"}
+            role="dialog"
+          >
+            <span className="freestyle-prompt__eyebrow">Freestyle · groove setup</span>
+            <h2>Play 4 bars</h2>
+            <p>Play sixteen measures at a comfortable pace. The band will lock to your groove, then you can follow the drums.</p>
+            {demoPhase === "capture" && demoPrompt && (
+              <p className="freestyle-prompt__status" data-testid="freestyle-prompt-status">{demoPrompt}</p>
+            )}
+          </section>
+        </div>
+      )}
 
       <ul className="session-overlay__lanes" aria-label="Active lanes">
         {lanes.map(({ instrument }) => (

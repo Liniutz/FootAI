@@ -295,7 +295,7 @@
   color: #0d1119;
 }
 
-/* Start button */
+/* Session start/stop actions */
 .rs-start {
   display: block;
   width: 100%;
@@ -311,6 +311,11 @@
   letter-spacing: 0.04em;
   cursor: pointer;
   transition: filter 0.12s ease, box-shadow 0.12s ease;
+}
+
+.rs-stop {
+  margin-top: 0.5rem;
+  background: linear-gradient(145deg, #7f2930, #5c1d25);
 }
 
 .rs-start:hover:not(:disabled) {

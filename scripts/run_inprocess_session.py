@@ -46,12 +46,12 @@ except ImportError:
 
 # Scarlett Solo 3rd gen exposes capture + playback on ALSA `hw:2,0`.
 INPUT_DEVICE = os.environ.get("CYBERJAM_INPUT_DEVICE", "Scarlett")
-# Monitor on every output that opens: the PipeWire default sink (Bluetooth/USB
-# headphones) *and* the Scarlett's own outputs, so the guitar is audible no
-# matter where the player is listening.
+# Monitor on the system default sink by default. The direct Scarlett ALSA
+# device's playback-channel count varies across PortAudio host APIs; add it
+# explicitly via CYBERJAM_OUTPUT_DEVICES only when its output is needed.
 OUTPUT_DEVICES = [
     d.strip()
-    for d in os.environ.get("CYBERJAM_OUTPUT_DEVICES", "default,Scarlett").split(",")
+    for d in os.environ.get("CYBERJAM_OUTPUT_DEVICES", "default").split(",")
     if d.strip()
 ]
 SAMPLE_RATE = 48000
@@ -104,7 +104,8 @@ LEAD_ENABLED = os.environ.get("CYBERJAM_LEAD", "0") == "1"
 
 # Demo mode: wait for the player, capture a short window, then lock BPM + key.
 DEMO_MODE = os.environ.get("CYBERJAM_DEMO", "0") == "1"
-DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "2"))
+# Freestyle defaults to twice the original two-bar capture (four bars total).
+DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "4"))
 
 # Sound selection. GeneralUser GS ships several kits in percussion bank 128;
 # "power" is the rock kit used by default.
@@ -208,9 +209,16 @@ class InProcessCyberJamSession:
         self._rnn_bars = 0
         self._fallback_bars = 0
 
-        # Demo state machine: wait -> capture -> locked.
-        self._demo_phase = "wait" if DEMO_MODE else ""
+        # Guided capture state: Freestyle (or explicit --demo) waits, captures, then locks.
+        self._demo_mode = (
+            DEMO_MODE
+            or os.environ.get("CYBERJAM_FREESTYLE", "0") == "1"
+            or os.environ.get("CYBERJAM_SESSION_MODE", "").lower() == "freestyle"
+        )
+        self._demo_phase = "wait" if self._demo_mode else ""
         self._demo_capture_start: float | None = None
+        self._demo_capture_secs = DEMO_BARS * 4 * 60.0 / max(40.0, self.config.default_bpm)
+        self._demo_bpm_samples: list[float] = []
         self._demo_locked = False
         self._locked_bpm = float(self.config.default_bpm)
         self._locked_root_pc = 4
@@ -429,8 +437,8 @@ class InProcessCyberJamSession:
         self.active_notes_timeline.clear()
         self._taps = [0] * 32
         self._tap_pos = 0
-        if DEMO_MODE:
-            # Let the demo start over: prompt again on the next note.
+        if self._demo_mode:
+            # Let the guided capture start over: prompt again on the next note.
             self._demo_phase = "wait"
             self._demo_locked = False
         try:
@@ -439,7 +447,7 @@ class InProcessCyberJamSession:
                 notes=[],
                 current_step=0,
                 demo_phase=self._demo_phase,
-                demo_prompt="" if DEMO_MODE else self.state.snapshot().get("demo_prompt", ""),
+                demo_prompt=(f"Play {DEMO_BARS} bars ({DEMO_BARS * 4} measures) to set the groove." if self._demo_mode else self.state.snapshot().get("demo_prompt", "")),
             )
         except Exception:
             pass
@@ -471,18 +479,21 @@ class InProcessCyberJamSession:
             now = time.monotonic()
 
             # ---- Demo mode: prompt, capture, then lock BPM + key -------------
-            if DEMO_MODE:
-                playing = float(snapshot.get("rms") or 0.0) > 0.01 or snapshot.get("is_playing")
+            if self._demo_mode:
+                playing = float(snapshot.get("rms") or 0.0) > 0.003 or snapshot.get("is_playing")
 
                 if self._demo_phase == "wait":
                     if playing:
                         self._demo_phase = "capture"
                         self._demo_capture_start = now
+                        self._demo_bpm_samples = []
                         current_bpm = float(snapshot.get("bpm") or self.config.default_bpm)
-                        capture_secs = DEMO_BARS * 4 * 60.0 / max(40.0, current_bpm)
+                        self._demo_initial_bpm = current_bpm
+                        self._demo_capture_secs = DEMO_BARS * 4 * 60.0 / max(40.0, current_bpm)
+                        capture_secs = self._demo_capture_secs
                         msg = (
-                            f"Now sing or play {DEMO_BARS} bars "
-                            f"(~{capture_secs:.0f}s) - I'm listening for the tempo and key."
+                            f"Play {DEMO_BARS} bars ({DEMO_BARS * 4} measures) "
+                            f"(~{capture_secs:.0f}s) — I'm learning your groove."
                         )
                         logger.info("DEMO: %s", msg)
                         self.state.update(demo_phase="capture", demo_prompt=msg)
@@ -494,7 +505,20 @@ class InProcessCyberJamSession:
 
                 elif self._demo_phase == "capture":
                     current_bpm = float(snapshot.get("bpm") or self.config.default_bpm)
-                    capture_secs = DEMO_BARS * 4 * 60.0 / max(40.0, current_bpm)
+                    detected_bpm = float(snapshot.get("bpm") or 0.0)
+                    # Reject implausible octave/subdivision jumps against the
+                    # current tracker estimate; the median then resists strum jitter.
+                    if snapshot.get("detected_bpm") and 40.0 <= detected_bpm <= 240.0:
+                        reference_bpm = (
+                            self._demo_bpm_samples[-1]
+                            if self._demo_bpm_samples
+                            else self._demo_initial_bpm
+                        )
+                        if abs(detected_bpm - reference_bpm) <= max(12.0, reference_bpm * 0.18):
+                            self._demo_bpm_samples.append(detected_bpm)
+                    # Capture the originally requested two-bar window; changing
+                    # BPM estimates must not move the deadline underneath the player.
+                    capture_secs = self._demo_capture_secs
                     elapsed = now - (self._demo_capture_start or now)
                     if elapsed >= capture_secs:
                         pitch_classes = tuple(snapshot.get("pitch_classes") or ())
@@ -502,7 +526,16 @@ class InProcessCyberJamSession:
                             pitch_classes,
                             fallback_pc=int(snapshot.get("midi_note") or 4) % 12,
                         )
-                        self._locked_bpm = float(snapshot.get("bpm") or self.config.default_bpm)
+                        if self._demo_bpm_samples:
+                            ordered_bpms = sorted(self._demo_bpm_samples)
+                            middle = len(ordered_bpms) // 2
+                            self._locked_bpm = (
+                                ordered_bpms[middle]
+                                if len(ordered_bpms) % 2
+                                else (ordered_bpms[middle - 1] + ordered_bpms[middle]) / 2
+                            )
+                        else:
+                            self._locked_bpm = float(snapshot.get("bpm") or self.config.default_bpm)
                         self._locked_root_pc = root_pc
                         self._locked_mode = mode
                         self._demo_locked = True
