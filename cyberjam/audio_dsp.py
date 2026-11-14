@@ -405,6 +405,19 @@ class AudioDSPEngine:
                 logger.debug("Audio callback reported %d xrun/status flags so far", self._xrun_count)
                 self._xrun_logged = self._xrun_count
 
+    def reset_tempo(self) -> None:
+        """Forget the current tempo so the next playing session re-detects it."""
+        self._smoothed_bpm = None
+        self._tempo_tracker.reset()
+        self._flux_history.clear()
+        self._song_started = False
+        self._total_beats = 0.0
+        try:
+            self.state.update(bpm=None, detected_bpm=False, reset_bpm=True)
+        except Exception:
+            pass
+        logger.info("Tempo memory cleared.")
+
     def _compute_spectral_centroid_from_mag(self, mag: np.ndarray | None) -> float:
         if mag is None:
             return 0.0

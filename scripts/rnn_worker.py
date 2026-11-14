@@ -34,6 +34,12 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 # generated with an older protoc; the pure-Python protobuf implementation avoids
 # the "Descriptors cannot be created directly" error.
 os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+# TensorFlow otherwise grabs every core and starves the audio thread at small
+# buffer sizes, which makes PortAudio/ALSA abort on xruns.
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "2")
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+os.environ.setdefault("OMP_NUM_THREADS", "2")
+os.environ.setdefault("MKL_NUM_THREADS", "2")
 
 import note_seq  # noqa: E402
 from note_seq.protobuf import generator_pb2  # noqa: E402
