@@ -5,6 +5,11 @@ import { MenuView } from "./MenuView";
 import { useVisualizerStore } from "../store";
 import { INITIAL_SELECTION } from "../store";
 import { SELECTION_STORAGE_KEY } from "../menu/persistence";
+import { startEngineSession } from "../sessionControl";
+
+vi.mock("../sessionControl", () => ({
+  startEngineSession: vi.fn().mockResolvedValue({ running: true, started: true }),
+}));
 
 function resetStore() {
   useVisualizerStore.setState({ selection: INITIAL_SELECTION });
@@ -89,7 +94,7 @@ describe("MenuView", () => {
     expect(screen.getByRole("radio", { name: /Cargo/ })).not.toBeChecked();
   });
 
-  it("requires a song then a mode before Start enables, then navigates", () => {
+  it("starts the engine pipeline before navigating to the Visualizer", async () => {
     render(<MenuView />);
 
     expect(
@@ -111,7 +116,11 @@ describe("MenuView", () => {
     const ready = screen.getByRole("button", { name: /Start Session/ });
     expect(ready).toBeEnabled();
 
-    act(() => ready.click());
+    await act(async () => {
+      ready.click();
+      await Promise.resolve();
+    });
+    expect(startEngineSession).toHaveBeenCalledOnce();
     expect(window.location.hash).toBe("#/visualizer");
     expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
   });

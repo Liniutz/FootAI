@@ -18,6 +18,7 @@ import { loadSelection, saveSelection } from "../menu/persistence";
 import { routeHref } from "../router";
 import { useGamepad } from "../menu/useGamepad";
 import type { DifficultyMode } from "../types";
+import { startEngineSession } from "../sessionControl";
 
 /** The selectable difficulty modes (shown once a real song is picked). */
 const MODES: ReadonlyArray<{
@@ -53,6 +54,8 @@ export function MenuView() {
 
   const [focusIndex, setFocusIndex] = useState(0);
   const [padConnected, setPadConnected] = useState(false);
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
 
   // The difficulty-mode step applies only to real songs, not Freestyle.
   const showModeStep =
@@ -85,8 +88,16 @@ export function MenuView() {
   const canStart =
     selection.songId !== null && (!showModeStep || selection.mode !== null);
 
-  const startVisualizer = () => {
-    if (!canStart) return;
+  const startVisualizer = async () => {
+    if (!canStart || starting) return;
+    setStarting(true);
+    setStartError(null);
+    const result = await startEngineSession();
+    if (!result.running) {
+      setStartError(result.error ?? "Could not start the CyberJam engine.");
+      setStarting(false);
+      return;
+    }
     window.location.hash = routeHref("visualizer");
   };
 
@@ -267,16 +278,24 @@ export function MenuView() {
             }
             onClick={startVisualizer}
             onMouseEnter={() => setFocusIndex(index)}
-            disabled={!canStart}
+            disabled={!canStart || starting}
           >
-            {canStart
-              ? "Start Session ▶"
+            {starting
+              ? "Starting CyberJam…"
+              : canStart
+                ? "Start Session ▶"
               : selection.songId === null
                 ? "Select a song to start"
                 : "Choose a mode to start"}
           </button>
         );
       })()}
+
+      {startError && (
+        <p className="rs-hint" role="alert">
+          {startError}
+        </p>
+      )}
 
       <p className="rs-hint" aria-live="polite">
         {padConnected

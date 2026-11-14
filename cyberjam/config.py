@@ -16,7 +16,9 @@ class SessionConfig:
     block_size: int = 512
     udp_host: str = "127.0.0.1"
     udp_port: int = 13000
+    osc_host: str = "127.0.0.1"
     osc_port: int = 12000
+    cc_channel: int = 1
     ws_port: int = 8080
     midi_port: str = "CyberJam_Band"
     default_key: str = "E"
@@ -24,10 +26,16 @@ class SessionConfig:
     onset_threshold: float = 0.3
     silence_db: float = -40.0
     pitch_backend: str = "aubio"
+    prefer_jack: bool = True
     enable_pipewire_loopback: bool = False
     channels: int = 1
     silence_hold_sec: float = 2.0
     creativity: float = 0.5
+
+    @property
+    def midi_port_name(self) -> str:
+        """Compatibility alias used by the session orchestrator."""
+        return self.midi_port
 
 
 class MusicalState:
