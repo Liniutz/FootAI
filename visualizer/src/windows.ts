@@ -19,24 +19,17 @@ export function routeUrl(route: Route): string {
 }
 
 /**
- * Open both screens as separate windows. Returns:
- *   - "opened"       both windows were created,
- *   - "blocked"      the browser blocked at least one popup,
- *   - "unsupported"  `window.open` is unavailable (SSR / test env).
- *
- * Each window is named so repeated calls re-focus the existing window instead
- * of spawning duplicates.
+ * Open both operator displays as separate windows. The calling window becomes
+ * the Menu/monitor and only the TV Visualizer is opened as a popup. Keeping one
+ * popup (rather than two) works more reliably with browser popup policies.
  */
 export function openBothScreens(): OpenWindowsResult {
   if (typeof window === "undefined" || typeof window.open !== "function") {
     return "unsupported";
   }
 
-  const menu = window.open(routeUrl("menu"), "cyberjam-menu");
   const visualizer = window.open(routeUrl("visualizer"), "cyberjam-visualizer");
-
-  if (!menu || !visualizer) {
-    return "blocked";
-  }
+  if (!visualizer) return "blocked";
+  window.location.hash = routeHref("menu");
   return "opened";
 }

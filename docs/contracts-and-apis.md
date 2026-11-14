@@ -2,7 +2,7 @@
 
 ## 1. Visual Telemetry WebSocket (`ws://127.0.0.1:8080`)
 
-Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual clients (TouchDesigner / React). The server maps internal `MusicalState` fields (`pitch_hz`, `note`, `midi_note`, `key`) into the stable nested `detected_pitch` visualizer contract and supplies `timestamp`; legacy internal fields remain in each frame for existing local consumers.
+Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual clients (TouchDesigner / React). The React Menu and TV windows additionally mirror the validated frame through the local browser `BroadcastChannel` (`cyberjam-visualizer`), alongside live selection synchronization. The server maps internal `MusicalState` fields (`pitch_hz`, `note`, `midi_note`, `key`) into the stable nested `detected_pitch` visualizer contract and supplies `timestamp`; legacy internal fields remain in each frame for existing local consumers.
 
 > **Built-in Live Monitor GUI:** Open [`scripts/monitor_gui.html`](../scripts/monitor_gui.html) in a browser (`xdg-open scripts/monitor_gui.html`) to view live notes, chromatic pitch class, BPM, RMS, spectral centroid, and onset flashes in real time.
 

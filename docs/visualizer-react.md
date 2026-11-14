@@ -1,19 +1,13 @@
 # React Visualizer — Implementation Plan
 
 The **CyberJam Visualizer** is a standalone React web application for the installation. It
-consumes the existing (unmodified) Python engine APIs and provides two features:
+consumes the Python engine telemetry and presents a control Menu display plus a simplified, fullscreen TV performance display:
 
-1. **Menu** — choose the song and the instruments for the session; starting Freestyle automatically begins a four-bar (sixteen-measure) tempo-capture before the backing band starts.
-2. **Visualizer** — render the guitar notes you play (from DSP telemetry) and a live waveform
-   of the audio, while the DAW/speakers produce the ML accompaniment audio.
+1. **Menu** — choose the song/difficulty, monitor live BPM/key, and display beginner guidance. Menu and Visualizer synchronize selection and validated telemetry directly using `BroadcastChannel`.
+2. **Visualizer** — a headerless fullscreen TV view of the guitar note, live waveform and performance graphics. Band/instrument labels are omitted from the display; engine band behavior is unchanged.
 
-**Two-window / two-screen layout:** one running dev-server instance serves three hash routes
-(`#/` launcher, `#/menu`, `#/visualizer`). On load, the launcher **automatically attempts to open
-both screens as separate browser windows** (one per screen); if the browser blocks the popups it
-falls back to a single "Open both screens" button. The operator adjusts the Menu in real time on
-screen 1 while screen 2 shows the full Visualizer. The two windows share the user's `selection`
-live via the **BroadcastChannel** API (client-side only, no backend). There is no in-app
-navigation chrome — each view fills its window.
+**Two-window / two-screen layout:** the launcher window becomes the Menu/learning monitor, and a popup opens the TV Visualizer. One running dev-server instance serves three hash routes
+(`#/` launcher, `#/menu`, `#/visualizer`). The launcher attempts to open the TV Visualizer window, then this window becomes the persistent Menu/learning monitor. If the browser blocks the popup, the operator can retry using the visible button. The Menu remains available for live session control while the TV shows the Visualizer. Both windows share `selection` and telemetry through **BroadcastChannel** (client-side only, no backend). There is no in-app navigation chrome — each view fills its window.
 
 > [!IMPORTANT]
 > This subsystem does **not** modify the Python engine, open any new ports, or add a backend.
