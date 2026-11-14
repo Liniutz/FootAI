@@ -76,6 +76,7 @@ describe("MenuView", () => {
     expect(useVisualizerStore.getState().selection).toEqual({
       songId: "cargo-song",
       instrumentIds: ["bass"],
+      mode: null,
     });
   });
 
@@ -88,18 +89,55 @@ describe("MenuView", () => {
     expect(screen.getByRole("radio", { name: /Cargo/ })).not.toBeChecked();
   });
 
-  it("disables Start until a song is chosen, then navigates to the Visualizer", () => {
+  it("requires a song then a mode before Start enables, then navigates", () => {
     render(<MenuView />);
 
-    const start = screen.getByRole("button", { name: /Select a song to start/ });
-    expect(start).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Select a song to start/ }),
+    ).toBeDisabled();
 
+    // Picking a real song reveals the Mode step but Start stays disabled.
     act(() => screen.getByRole("radio", { name: /Cargo/ }).click());
+    expect(
+      screen.getByRole("button", { name: /Choose a mode to start/ }),
+    ).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Beginner" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: "Experienced" }),
+    ).toBeInTheDocument();
 
+    // Choosing a mode enables Start.
+    act(() => screen.getByRole("radio", { name: "Beginner" }).click());
     const ready = screen.getByRole("button", { name: /Start Session/ });
     expect(ready).toBeEnabled();
 
     act(() => ready.click());
     expect(window.location.hash).toBe("#/visualizer");
+    expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
+  });
+
+  it("does not show the mode step for Freestyle and starts without a mode", () => {
+    render(<MenuView />);
+
+    act(() => screen.getByRole("radio", { name: "Freestyle" }).click());
+
+    expect(screen.queryByRole("radio", { name: "Beginner" })).not.toBeInTheDocument();
+    const ready = screen.getByRole("button", { name: /Start Session/ });
+    expect(ready).toBeEnabled();
+    expect(useVisualizerStore.getState().selection.mode).toBeNull();
+  });
+
+  it("clears a chosen mode when switching to another song", () => {
+    render(<MenuView />);
+
+    act(() => screen.getByRole("radio", { name: /Cargo/ }).click());
+    act(() => screen.getByRole("radio", { name: "Experienced" }).click());
+    expect(useVisualizerStore.getState().selection.mode).toBe("experienced");
+
+    act(() => screen.getByRole("radio", { name: /Free Jam/ }).click());
+    expect(useVisualizerStore.getState().selection.mode).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /Choose a mode to start/ }),
+    ).toBeDisabled();
   });
 });

@@ -329,6 +329,16 @@
   opacity: 0.6;
 }
 
+.session-ref__tag {
+  align-self: center;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  opacity: 0.85;
+}
+
 .session-ref--match {
   border-color: #38d39f;
   color: #38d39f;
@@ -443,4 +453,60 @@
   font-family: var(--font-body);
   font-size: 0.8rem;
   color: #ffd9a0;
+}
+
+/* --- Beginner coach: chord diagrams + osu!-style approach circle --- */
+.beginner-coach {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  padding: 1rem 0.9rem;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.beginner-coach__chords {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+}
+
+.chorddiagram {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chorddiagram__name {
+  font-family: var(--font-heading, sans-serif);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--ink, #e8eef7);
+}
+
+.chorddiagram--preview .chorddiagram__name {
+  color: var(--ink-dim, #93a4bd);
+  font-size: 0.8rem;
+}
+
+.beginner-coach__approach {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.beginner-coach__verdict {
+  margin: 0;
+  min-height: 1.2em;
+  font-family: var(--font-heading, sans-serif);
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-dim, #93a4bd);
 }

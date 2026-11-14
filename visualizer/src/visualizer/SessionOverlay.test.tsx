@@ -41,7 +41,7 @@ describe("SessionOverlay", () => {
   it("renders only selected lanes and the chosen song title", () => {
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums", "bass"] },
+        selection: { songId: "cargo-song", instrumentIds: ["drums", "bass"], mode: "experienced" },
       });
     });
     render(<SessionOverlay />);
@@ -55,7 +55,7 @@ describe("SessionOverlay", () => {
   it("shows reference BPM/key vs live values and flags a match", () => {
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: "cargo-song", instrumentIds: ["drums"] },
+        selection: { songId: "cargo-song", instrumentIds: ["drums"], mode: "experienced" },
         latestFrame: frame({
           bpm: 128,
           detected_pitch: { hz: 82, note: "E2", midi: 40, key: "E" },
@@ -79,12 +79,42 @@ describe("SessionOverlay", () => {
 
     act(() => {
       useVisualizerStore.setState({
-        selection: { songId: null, instrumentIds: ["drums"] },
+        selection: { songId: null, instrumentIds: ["drums"], mode: null },
       });
     });
     rerender(<SessionOverlay />);
 
     expect(screen.getByTestId("session-lane-drums")).toBeInTheDocument();
     expect(screen.queryByTestId("session-lane-bass")).not.toBeInTheDocument();
+  });
+
+  it("shows live BPM/key without a reference target for Freestyle", () => {
+    act(() => {
+      useVisualizerStore.setState({
+        selection: { songId: "freestyle", instrumentIds: ["drums", "bass"], mode: null },
+        latestFrame: frame({
+          bpm: 134,
+          detected_pitch: { hz: 220, note: "A3", midi: 57, key: "A" },
+        }),
+      });
+    });
+    render(<SessionOverlay />);
+
+    expect(screen.getByTestId("session-song-title")).toHaveTextContent(
+      "Freestyle",
+    );
+    const bpm = screen.getByTestId("session-bpm");
+    const key = screen.getByTestId("session-key");
+    // Live values shown…
+    expect(bpm).toHaveTextContent("134");
+    expect(key).toHaveTextContent("A");
+    // …but no "/ reference" target and no match/off coloring.
+    expect(bpm).not.toHaveTextContent("/");
+    expect(key).not.toHaveTextContent("/");
+    expect(bpm.className).toContain("session-ref--none");
+    // The freestyle tagline is present.
+    expect(screen.getByTestId("session-freestyle-tag")).toHaveTextContent(
+      /band follows/i,
+    );
   });
 });

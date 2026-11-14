@@ -160,7 +160,7 @@
 
 .rs-columns {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
 }
 
@@ -231,6 +231,12 @@
 
 /* Selected song */
 .rs-card--song.is-selected {
+  background: linear-gradient(145deg, #15314a, #0f2235);
+  border-color: var(--rs-glow);
+}
+
+/* Selected difficulty-mode card shares the song-card highlight treatment. */
+.rs-card--mode.is-selected {
   background: linear-gradient(145deg, #15314a, #0f2235);
   border-color: var(--rs-glow);
 }

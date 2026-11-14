@@ -137,8 +137,9 @@ flowchart TD
 
 **The frozen contract (produced in Task 2, do not change unilaterally after Sprint 0):**
 - `TelemetryFrame` — the telemetry JSON shape (Visualizer lane reads it).
-- `SessionSelection` — `{ songId, instrumentIds }` (Menu lane writes it, Visualizer lane reads it
-  in Task 9).
+- `SessionSelection` — `{ songId, instrumentIds, mode }` where `mode` is the per-song difficulty
+  (`"beginner" | "experienced" | null`; always null for Freestyle). The Menu lane writes it; the
+  Visualizer lane reads it in Task 9.
 - The Zustand store slices `latestFrame`, `connectionStatus`, `audioStatus`, `selection` and their
   actions.
 - The `catalog.ts` instrument/song entry types (`id`, `lane`, `displayColor`, `midiChannel`,
@@ -217,7 +218,7 @@ lanes with the same dependency can run simultaneously.
   - *Tests:* Unit-test store actions (set frame, set selection, set statuses) and initial state.
   - *Demo:* A temporary debug panel renders `connectionStatus` and `selection` from the store.
   - *Result:* Frozen contract in `src/types.ts` (`TelemetryFrame`/`DetectedPitch` matching the JSON
-    schema exactly, `SessionSelection` = `{ songId, instrumentIds }`, status unions, and the
+    schema exactly, `SessionSelection` = `{ songId, instrumentIds, mode }`, status unions, and the
     `InstrumentEntry`/`SongEntry` catalog types). Store in `src/store.ts` with `latestFrame`,
     `connectionStatus`, `audioStatus`, `selection` slices and actions (navigation moved to the hash
     router, so there is no `view` slice). Temporary `DebugPanel` renders status + selection. Engine
@@ -239,8 +240,10 @@ lanes with the same dependency can run simultaneously.
   - *Result:* Static catalog in `src/data/catalog.ts` using the frozen `InstrumentEntry`/`SongEntry`
     types (no network calls). Instruments: **Drums** (lane 0, MIDI Ch 10), **Bass** (lane 1, Ch 2),
     **Synth / FX** (lane 2, Ch 1), each with a `displayColor`; channels match
-    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Cargo** (`cargo-song`, 128 BPM,
-    key E) and **Free Jam** (engine defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
+    [`contracts-and-apis.md`](./contracts-and-apis.md) §3. Songs: **Freestyle** (`freestyle`, a
+    guitar-led jam where the ML drums + bass are generated to follow the player — `freestyle: true`,
+    no fixed tempo/key target), **Cargo** (`cargo-song`, 128 BPM, key E) and **Free Jam** (engine
+    defaults, 120 BPM, key E). Selectors: `getInstrumentById`,
     `getSongById`, `getInstrumentsByIds` (catalog lane order, drops unknowns), `isValidInstrumentId`,
     `isValidSongId`. `MenuView` renders a temporary read-only list of the catalog (replaced by the
     interactive pickers in Task 5). Verified: `npm run typecheck`, `npm test` (37 passing, incl. 15
@@ -280,6 +283,16 @@ lanes with the same dependency can run simultaneously.
     semantics preserved via `role="radio"`/`aria-pressed`). Tests: pure `readActions`/`stepActions`
     units cover button/axis mapping and rising-edge detection (6 new). Re-verified: `npm run
     typecheck`, `npm test` (55 passing), and `npm run build` all green.
+  - *Enhancement (song option + difficulty mode):* Added a **Freestyle** catalog entry (guitar-led
+    jam, `freestyle: true`; see Task 4). Added a per-song **difficulty mode** step
+    (`beginner | experienced`) stored on `SessionSelection.mode`: after a real song is picked the
+    Menu shows a "Mode" card group (single-select radios, in the controller focus ring between songs
+    and instruments); Start stays disabled until a mode is chosen. **Freestyle skips the mode step**
+    and can start immediately. `setSong` clears `mode` so it is re-chosen per song; persistence
+    sanitizes `mode` to the two valid values. The actual beginner chord-diagram / approaching-timing-
+    circle Visualizer rendering is a later task; this change only establishes the data model + menu
+    UI. Re-verified: `npm run typecheck`, `npm test` (176 passing), and `npm run build` all green on
+    branch `feat/menu-freestyle-song`.
 
 ### Lane C — Visualizer feature (parallel with Lane B)
 
@@ -380,8 +393,10 @@ lanes with the same dependency can run simultaneously.
     (`src/visualizer/SessionOverlay.tsx`, wired into `VisualizerView` above the stage) renders the
     song title + reference BPM/key vs live values (color-coded match) and a lane legend with each
     instrument's `displayColor` and MIDI channel label; with no selection it shows "Free Session" and
-    all lanes. `Fretboard` now filters its band gems through `filterEventsBySelection`, so deselected
-    instruments disappear from the board. Verified: `npm run typecheck`, `npm test` (148 passing,
+    all lanes. For a **freestyle** song the overlay shows live BPM/key without a reference target plus
+    a "Guitar leads · band follows" tagline. `Fretboard` now filters its band gems through
+    `filterEventsBySelection`, so deselected instruments disappear from the board. Verified: `npm run
+    typecheck`, `npm test` (148 passing,
     incl. 15 `selectionView` + 4 `SessionOverlay` tests), and `npm run build` all green on branch
     `feat/visualizer-next`.
 
@@ -542,6 +557,48 @@ What landed (no engine change; all additive):
   `prefers-reduced-motion` respected.
 - Tests: pure-logic coverage for the fretboard geometry (`fretboardGeometry.test.ts`, 9 tests),
   scoring (6), plus the rest. Full suite **96 green**; `typecheck` + `build` green.
+
+---
+
+### Beginner mode — chord coach + osu!-style approach circle ✅ *Done.*
+
+Shown in the Visualizer only when `selection.mode === "beginner"` (Experienced shows the standard
+view). Added after the per-song difficulty-mode menu step.
+
+- **Chord diagrams** (`src/visualizer/ChordDiagram.tsx`): a clean SVG fretboard for the current
+  bar's chord — six strings (low-E first), fret wires, a thick nut, open/muted `O`/`X` markers above
+  the nut, and numbered finger dots — plus a dimmed **preview of the next chord** so the player can
+  prepare. Chord shapes + per-song progressions live in `src/visualizer/chords.ts`
+  (`cargo-song` → Em–C–G–D, `free-jam` → E–A–D–A, default fallback otherwise; the progression loops
+  per bar).
+- **Approach circle** (`src/visualizer/BeginnerCoach.tsx`): a static target ring with a shrinking
+  outer ring that contracts in time with the song's **reference BPM in 4/4** and converges exactly
+  on **Beat 1** of each bar. Driven by a local beat clock (`src/visualizer/beatClock.ts`) off a
+  `RenderLoop`, writing the radius straight to the SVG via a ref (no per-frame React render). On each
+  bar boundary the progression advances and the circle resets.
+- **Timing feedback replaces an audio cue:** when the player strums (telemetry `onset`), the target
+  ring flashes **green** (perfect/good), **yellow** (ok), or **red** (miss) based on the strum's
+  absolute error to Beat 1, using tempo-scaled windows (`hitWindowsForBpm`).
+- Timing source decision: the circle is driven by a **local clock from the song BPM** (deterministic,
+  leads the player, works engine-less under `?mock`) rather than the engine's player-derived
+  `bar`/`beat` (which are 0 while idle and would *follow* the player).
+- Tests: pure `beatClock` math (11 — tempo, bar phase, approach fraction, signed error, verdicts) and
+  `chords` (8 — library integrity, progression lookup, bar looping), plus a `ChordDiagram` render
+  test (3). Full suite **198 green**; `typecheck` + `build` green.
+
+---
+
+### Removed the player-facing fretboard ribbon ✅ *Done.*
+
+The horizontal 6-string fretboard rendered the **ML band's** MIDI (drums/bass gems), not the
+player's guitar, and required a manual "Connect Band MIDI" step. The right-side **NotePitchPanel**
+already shows the player's detected note (name, pitch marker, trail, onset pulse) from telemetry, so
+the fretboard duplicated no player feedback and only added clutter + a manual connect. It was
+**removed from `VisualizerView`**, along with the `useBandMidi` hook usage and the "Connect Band
+MIDI" button; `StatusBar` gained a `showMidi` prop (passed `false` here) so no dangling "Band MIDI
+off" pill or guidance remains. The band-MIDI data layer (`midi/band.ts`, `useBandMidi`,
+`Fretboard.tsx`, store `bandEvents`) and its tests are retained for possible reuse but are no longer
+wired into the view. Full suite **200 green**; `typecheck` + `build` green.
 
 ---
 

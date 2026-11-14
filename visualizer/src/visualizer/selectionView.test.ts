@@ -11,7 +11,7 @@ import {
 } from "./selectionView";
 import type { BandMidiEvent, SessionSelection } from "../types";
 
-const EMPTY: SessionSelection = { songId: null, instrumentIds: [] };
+const EMPTY: SessionSelection = { songId: null, instrumentIds: [], mode: null };
 
 function ev(role: BandMidiEvent["role"]): BandMidiEvent {
   return { time: 0, role, channel: 0, kind: "note_on", data1: 60, data2: 100 };
@@ -31,6 +31,7 @@ describe("activeLanes", () => {
     const sel: SessionSelection = {
       songId: null,
       instrumentIds: ["synth-fx", "drums"],
+      mode: null,
     };
     expect(activeLanes(sel).map((l) => l.instrument.id)).toEqual([
       "drums",
@@ -50,12 +51,13 @@ describe("activeLanes", () => {
     const sel: SessionSelection = {
       songId: null,
       instrumentIds: ["drums", "ghost"],
+      mode: null,
     };
     expect(activeLanes(sel).map((l) => l.instrument.id)).toEqual(["drums"]);
   });
 
   it("tags each lane with its MIDI role", () => {
-    const sel: SessionSelection = { songId: null, instrumentIds: ["bass"] };
+    const sel: SessionSelection = { songId: null, instrumentIds: ["bass"], mode: null };
     expect(activeLanes(sel)[0]?.role).toBe("bass");
   });
 });
@@ -65,6 +67,7 @@ describe("activeRoles / filterEventsBySelection", () => {
     const sel: SessionSelection = {
       songId: null,
       instrumentIds: ["drums", "bass"],
+      mode: null,
     };
     expect(activeRoles(sel)).toEqual(new Set(["drums", "bass"]));
 
@@ -84,13 +87,13 @@ describe("activeRoles / filterEventsBySelection", () => {
 describe("selectedSong", () => {
   it("resolves a selected song", () => {
     expect(
-      selectedSong({ songId: "cargo-song", instrumentIds: [] })?.title,
+      selectedSong({ songId: "cargo-song", instrumentIds: [], mode: null })?.title,
     ).toBe("Cargo");
   });
 
   it("returns null when no / unknown song", () => {
     expect(selectedSong(EMPTY)).toBeNull();
-    expect(selectedSong({ songId: "ghost", instrumentIds: [] })).toBeNull();
+    expect(selectedSong({ songId: "ghost", instrumentIds: [], mode: null })).toBeNull();
   });
 });
 

@@ -5,8 +5,8 @@
  * pills (telemetry / audio / band MIDI) with a reconnect indicator, plus a
  * single operator-facing guidance line when action is needed (engine offline,
  * audio device missing, etc.). Action buttons are passed in as children so the
- * Visualizer can wire Enable Audio / Connect Band MIDI without this component
- * owning those hooks. Replaces the temporary DebugPanel from earlier tasks.
+ * Visualizer can wire Enable Audio without this component owning those hooks.
+ * Replaces the temporary DebugPanel from earlier tasks.
  */
 import type { ReactNode } from "react";
 import { useVisualizerStore } from "../store";
@@ -30,7 +30,14 @@ function Pill({ view, testId }: { view: StatusView; testId: string }) {
   );
 }
 
-export function StatusBar({ children }: { children?: ReactNode }) {
+export function StatusBar({
+  children,
+  showMidi = true,
+}: {
+  children?: ReactNode;
+  /** Show the band-MIDI pill. False when no band ribbon consumes it. */
+  showMidi?: boolean;
+}) {
   const connectionStatus = useVisualizerStore((s) => s.connectionStatus);
   const audioStatus = useVisualizerStore((s) => s.audioStatus);
   const midiStatus = useVisualizerStore((s) => s.midiStatus);
@@ -38,7 +45,10 @@ export function StatusBar({ children }: { children?: ReactNode }) {
   const telemetry = telemetryStatusView(connectionStatus);
   const audio = audioStatusView(audioStatus);
   const midi = midiStatusView(midiStatus);
-  const hint = primaryHint(connectionStatus, audioStatus, midiStatus);
+  // Only let MIDI drive the guidance line when its pill is actually shown.
+  const hint = showMidi
+    ? primaryHint(connectionStatus, audioStatus, midiStatus)
+    : primaryHint(connectionStatus, audioStatus, "idle");
 
   return (
     <div className="statusbar" aria-label="Status">
@@ -50,7 +60,7 @@ export function StatusBar({ children }: { children?: ReactNode }) {
           </span>
         )}
         <Pill view={audio} testId="status-audio" />
-        <Pill view={midi} testId="status-midi" />
+        {showMidi && <Pill view={midi} testId="status-midi" />}
         {children}
       </div>
 

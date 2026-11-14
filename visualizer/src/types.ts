@@ -81,11 +81,26 @@ export interface SongEntry {
   referenceBpm: number;
   /** Reference key for comparison against detected `key`. */
   referenceKey: string;
+  /**
+   * Freestyle jam mode: the guitar leads and the ML band (drums + bass) is
+   * generated to follow it, so there is no fixed target tempo/key. When true,
+   * the Visualizer shows live BPM/key without a reference comparison.
+   * Optional and defaults to false for regular songs.
+   */
+  freestyle?: boolean;
 }
 
 // ---------------------------------------------------------------------------
 // Session selection (written by the Menu lane; read by the Visualizer lane)
 // ---------------------------------------------------------------------------
+
+/**
+ * Difficulty mode chosen per song (not applicable to Freestyle).
+ *   - "beginner":   the Visualizer adds a chord diagram with an approaching
+ *                   timing circle (rendering lands in a later prompt).
+ *   - "experienced": the same base view, with little/no beginner assistance.
+ */
+export type DifficultyMode = "beginner" | "experienced";
 
 /** The user's Menu choices. Persisted to localStorage (Task 5). */
 export interface SessionSelection {
@@ -93,6 +108,11 @@ export interface SessionSelection {
   songId: string | null;
   /** Selected instrument ids (multi-select). */
   instrumentIds: string[];
+  /**
+   * Difficulty mode for the selected song, or null when not yet chosen.
+   * Always null for Freestyle (the mode step does not apply there).
+   */
+  mode: DifficultyMode | null;
 }
 
 // ---------------------------------------------------------------------------

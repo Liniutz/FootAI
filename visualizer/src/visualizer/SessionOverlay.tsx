@@ -39,7 +39,21 @@ export function SessionOverlay() {
           {song ? song.title : "Free Session"}
         </span>
 
-        {song && (
+        {song?.freestyle && (
+          <div className="session-overlay__refs">
+            <span className="session-ref session-ref--none" data-testid="session-bpm">
+              BPM {Math.round(liveBpm && liveBpm > 0 ? liveBpm : 0) || "—"}
+            </span>
+            <span className="session-ref session-ref--none" data-testid="session-key">
+              Key {detectedKey && detectedKey !== "N/A" ? detectedKey : "—"}
+            </span>
+            <span className="session-ref__tag" data-testid="session-freestyle-tag">
+              Guitar leads · band follows
+            </span>
+          </div>
+        )}
+
+        {song && !song.freestyle && (
           <div className="session-overlay__refs">
             <span
               className={`session-ref session-ref--${bpmMatch ?? "none"}`}

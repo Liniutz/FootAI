@@ -12,15 +12,35 @@
  * Start button launches directly.
  */
 import { useEffect, useMemo, useState } from "react";
-import { INSTRUMENTS, SONGS } from "../data/catalog";
+import { INSTRUMENTS, SONGS, isFreestyleSong } from "../data/catalog";
 import { useVisualizerStore } from "../store";
 import { loadSelection, saveSelection } from "../menu/persistence";
 import { routeHref } from "../router";
 import { useGamepad } from "../menu/useGamepad";
+import type { DifficultyMode } from "../types";
+
+/** The selectable difficulty modes (shown once a real song is picked). */
+const MODES: ReadonlyArray<{
+  id: DifficultyMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "beginner",
+    label: "Beginner",
+    description: "Chord diagram with a timing circle to guide each change.",
+  },
+  {
+    id: "experienced",
+    label: "Experienced",
+    description: "Minimal assists — just play along.",
+  },
+];
 
 /** Flat list of focusable items for unified D-pad navigation. */
 type FocusItem =
   | { kind: "song"; id: string }
+  | { kind: "mode"; id: DifficultyMode }
   | { kind: "instrument"; id: string }
   | { kind: "start" };
 
@@ -28,19 +48,28 @@ export function MenuView() {
   const selection = useVisualizerStore((s) => s.selection);
   const setSelection = useVisualizerStore((s) => s.setSelection);
   const setSong = useVisualizerStore((s) => s.setSong);
+  const setMode = useVisualizerStore((s) => s.setMode);
   const toggleInstrument = useVisualizerStore((s) => s.toggleInstrument);
 
   const [focusIndex, setFocusIndex] = useState(0);
   const [padConnected, setPadConnected] = useState(false);
 
-  // The ordered focus ring: songs, then instruments, then the Start action.
+  // The difficulty-mode step applies only to real songs, not Freestyle.
+  const showModeStep =
+    selection.songId !== null && !isFreestyleSong(selection.songId);
+
+  // The ordered focus ring: songs, then (if applicable) modes, then
+  // instruments, then the Start action. It changes when the mode step toggles.
   const focusItems = useMemo<FocusItem[]>(
     () => [
       ...SONGS.map((s) => ({ kind: "song", id: s.id }) as const),
+      ...(showModeStep
+        ? MODES.map((m) => ({ kind: "mode", id: m.id }) as const)
+        : []),
       ...INSTRUMENTS.map((i) => ({ kind: "instrument", id: i.id }) as const),
       { kind: "start" } as const,
     ],
-    [],
+    [showModeStep],
   );
 
   // Rehydrate persisted selection on mount (corrupt storage -> defaults).
@@ -53,7 +82,8 @@ export function MenuView() {
     saveSelection(selection);
   }, [selection]);
 
-  const canStart = selection.songId !== null;
+  const canStart =
+    selection.songId !== null && (!showModeStep || selection.mode !== null);
 
   const startVisualizer = () => {
     if (!canStart) return;
@@ -65,6 +95,7 @@ export function MenuView() {
     const item = focusItems[focusIndex];
     if (!item) return;
     if (item.kind === "song") setSong(item.id);
+    else if (item.kind === "mode") setMode(item.id);
     else if (item.kind === "instrument") toggleInstrument(item.id);
     else startVisualizer();
   };
@@ -129,7 +160,9 @@ export function MenuView() {
                 >
                   <span className="rs-card__title">{song.title}</span>
                   <span className="rs-card__meta">
-                    {song.referenceBpm} BPM · Key {song.referenceKey}
+                    {song.freestyle
+                      ? "Jam freely — drums & bass follow your guitar"
+                      : `${song.referenceBpm} BPM · Key ${song.referenceKey}`}
                   </span>
                   {selected && <span className="rs-card__badge">Selected</span>}
                 </button>
@@ -137,6 +170,44 @@ export function MenuView() {
             })}
           </div>
         </section>
+
+        {/* --- Difficulty mode (only for real songs, not Freestyle) --- */}
+        {showModeStep && (
+          <section className="rs-panel" aria-label="Mode">
+            <h3 className="rs-panel__heading">Mode</h3>
+            <div role="radiogroup" aria-label="Mode" className="rs-cards">
+              {MODES.map((mode) => {
+                runningIndex += 1;
+                const index = runningIndex;
+                const selected = selection.mode === mode.id;
+                const focused = focusIndex === index;
+                return (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    aria-label={mode.label}
+                    className={
+                      "rs-card rs-card--mode" +
+                      (selected ? " is-selected" : "") +
+                      (focused ? " is-focused" : "")
+                    }
+                    onClick={() => {
+                      setFocusIndex(index);
+                      setMode(mode.id);
+                    }}
+                    onMouseEnter={() => setFocusIndex(index)}
+                  >
+                    <span className="rs-card__title">{mode.label}</span>
+                    <span className="rs-card__meta">{mode.description}</span>
+                    {selected && <span className="rs-card__badge">Selected</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* --- Instruments --- */}
         <section className="rs-panel" aria-label="Instruments">
@@ -198,7 +269,11 @@ export function MenuView() {
             onMouseEnter={() => setFocusIndex(index)}
             disabled={!canStart}
           >
-            {canStart ? "Start Session ▶" : "Select a song to start"}
+            {canStart
+              ? "Start Session ▶"
+              : selection.songId === null
+                ? "Select a song to start"
+                : "Choose a mode to start"}
           </button>
         );
       })()}

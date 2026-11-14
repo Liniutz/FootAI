@@ -76,6 +76,17 @@ describe("song catalog integrity", () => {
       expect(song.title.trim().length).toBeGreaterThan(0);
     }
   });
+
+  it("includes a Freestyle song flagged as freestyle", () => {
+    const freestyle = getSongById("freestyle");
+    expect(freestyle?.title).toBe("Freestyle");
+    expect(freestyle?.freestyle).toBe(true);
+  });
+
+  it("marks only the Freestyle entry as freestyle", () => {
+    const flagged = SONGS.filter((s) => s.freestyle).map((s) => s.id);
+    expect(flagged).toEqual(["freestyle"]);
+  });
 });
 
 describe("selector helpers", () => {
