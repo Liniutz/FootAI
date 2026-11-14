@@ -120,10 +120,14 @@ async def start(request: web.Request) -> web.Response:
     environment = os.environ.copy()
     environment["CYBERJAM_FREESTYLE"] = "1" if freestyle else "0"
     environment["CYBERJAM_RNN_SET"] = models
+    # Lowest-latency defaults for the dev flow; override with CYBERJAM_BLOCK.
+    block = str(environment.get("CYBERJAM_BLOCK", "64"))
+    environment["CYBERJAM_BLOCK"] = block
+    environment.setdefault("CYBERJAM_LATENCY", "low")
     # Use the supported live-session launcher (guitar passthrough, DSP, backing
     # band, telemetry and optional Magenta worker), not experimental run_session.py.
     PROCESS = subprocess.Popen(
-        [fish, str(launcher), "--models", models],
+        [fish, str(launcher), "--models", models, "--block", block],
         cwd=ROOT,
         env=environment,
         start_new_session=True,
