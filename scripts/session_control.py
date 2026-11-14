@@ -17,9 +17,12 @@ from aiohttp import web
 
 ROOT = Path(__file__).resolve().parents[1]
 HOST = "127.0.0.1"
-PORT = 8765
+PORT = int(os.environ.get("CYBERJAM_CONTROL_PORT", "8765"))
 PROCESS: subprocess.Popen[bytes] | None = None
 LOOPBACK: subprocess.Popen[bytes] | None = None
+
+# Model sets understood by scripts/run_inprocess_session.py --models.
+MODEL_SETS = ("cargo", "default", "groovae")
 
 
 def process_running() -> bool:
@@ -107,12 +110,23 @@ async def start(request: web.Request) -> web.Response:
     except (ValueError, web.HTTPException):
         payload = {}
     freestyle = payload.get("mode") == "freestyle" if isinstance(payload, dict) else False
+    models = "cargo"
+    if isinstance(payload, dict) and payload.get("models"):
+        models = str(payload["models"]).strip().lower()
+    if models not in MODEL_SETS:
+        models = os.environ.get("CYBERJAM_RNN_SET", "cargo").strip().lower()
+    if models not in MODEL_SETS:
+        models = "cargo"
     environment = os.environ.copy()
     environment["CYBERJAM_FREESTYLE"] = "1" if freestyle else "0"
+    environment["CYBERJAM_RNN_SET"] = models
     # Use the supported live-session launcher (guitar passthrough, DSP, backing
     # band, telemetry and optional Magenta worker), not experimental run_session.py.
     PROCESS = subprocess.Popen(
-        [fish, str(launcher)], cwd=ROOT, env=environment, start_new_session=True
+        [fish, str(launcher), "--models", models],
+        cwd=ROOT,
+        env=environment,
+        start_new_session=True,
     )
     # Wait briefly for early startup errors without blocking the event loop.
     await asyncio.sleep(0.8)
@@ -123,7 +137,7 @@ async def start(request: web.Request) -> web.Response:
             {"running": False, "error": f"Engine exited during startup (code {code})"},
             status=500,
         )
-    return web.json_response({"running": True, "started": True})
+    return web.json_response({"running": True, "started": True, "models": models})
 
 
 async def stop(_request: web.Request) -> web.Response:
