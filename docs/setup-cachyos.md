@@ -35,6 +35,21 @@ pip install -r requirements.txt
 > [!NOTE]
 > On Python 3.14 + modern FFmpeg (`libavcodec`), building `aubio 0.4.9` from PyPI source may fail. `cyberjam/audio_dsp.py` automatically falls back to SuperFlux onsets and a `librosa.yin` pitch estimator (BPM always uses the NumPy guitar tempo tracker in `cyberjam/tempo.py`). `aubio` is optional in `requirements.txt` if the `aubio` C-extension is absent.
 
+## 2b. Magenta RNN Environment (optional)
+
+The trained `.mag` bundles in `models/` require TensorFlow 2.15 + Magenta, which only support
+Python <= 3.11. They run in a **separate** interpreter and are driven by the session over
+stdin/stdout JSON, so the main `.venv` stays on 3.14:
+
+```fish
+fish scripts/setup_magenta_env.sh
+```
+
+This creates `.venv-magenta` (Python 3.9 via `uv`), installs TensorFlow 2.15, note-seq and
+Magenta from source, and verifies the import. With the env present, `./start_cyberjam.sh`
+picks up `models/wetransfer_cargo_bass-mag_2026-11-14_1356/cargo_{bass,drums,lead}.mag`
+automatically; without it, the algorithmic generator is used instead.
+
 ## 3. Running the Session
 
 ### Direct (Fish / `.venv`)

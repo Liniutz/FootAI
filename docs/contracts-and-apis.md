@@ -40,6 +40,16 @@ Broadcasts a JSON payload every **50 ms (20 Hz)** to all connected visual client
 | `rms` | `float` | Linear RMS amplitude (`0.0` – `1.0`) |
 | `spectral_centroid_hz` | `float` | Spectral centroid in Hz |
 | `onset` | `bool` | `true` if an onset occurred since the previous 50ms broadcast (an onset not consumed within `0.25s` expires, so a newly connected client never receives a stale one) |
+| `detected_bpm` | `bool` | `true` once a tempo has been measured from the live guitar (latched until `> 3s` silence) |
+| `detected_key` | `bool` | `true` once a pitch class has been measured from the live guitar (latched until `> 3s` silence) |
+| `band_active` | `bool` | `true` while the backing band is playing; set `false` after `CYBERJAM_SILENCE_TIMEOUT` (default `6s`) without guitar input |
+| `pitch_classes` | `int[]` | Rolling histogram (last 64 detections) of pitch classes `0`–`11`, used to infer key and major/minor mode |
+| `demo_phase` | `string` | Demo mode state: `"wait"`, `"capture"` or `"locked"` (empty when demo mode is off) |
+| `demo_prompt` | `string` | Human-readable prompt for the visualizer, e.g. "Now sing or play 2 bars…" |
+
+> The bundled live session (`scripts/run_inprocess_session.py`) keeps the backing band
+> completely silent until **both** `detected_bpm` and `detected_key` are `true`, then locks
+> in and plays continuously.
 
 ---
 
