@@ -40,8 +40,11 @@ navigation chrome — each view fills its window.
 ### Excluded on purpose
 - **Raw UDP `:13000` PCM** — not accessible from a browser; the PipeWire Virtual Source path is
   used instead. Live audio therefore requires the engine launched with `--pipewire-loopback`.
-- **OSC `:12000`** and **`CyberJam_Band` MIDI** — reference-only contracts. The app does not open
-  them; it may *display* the documented roles (Ch 1 CC, Ch 2 bass, Ch 10 drums) as lane labels.
+- **OSC `:12000`** — reference-only; the app never opens it.
+- **`CyberJam_Band` MIDI** — originally reference-only, but **Extension track E** now *reads* it
+  via the browser **Web MIDI API** (input only, never output) to drive the band note ribbon.
+  Channel roles are shown as lane labels (Ch 1 CC, Ch 2 bass, Ch 10 drums). This opens no new port
+  and does not modify the engine.
 
 ---
 
@@ -430,7 +433,7 @@ lanes with the same dependency can run simultaneously.
 
 ### Documentation task (repo rule compliance)
 
-- [ ] **Task 11: Keep this doc and the index synchronized.**
+- [x] **Task 11: Keep this doc and the index synchronized.** ✅ *Done (Integration).*
   - *Lane:* Integration. *Depends on:* Task 10. *Parallel with:* none.
   - *Objective:* As the React visualizer is implemented, keep this file accurate (stack, how it
     consumes the WebSocket/Web Audio contracts, how to run it alongside the engine including the
@@ -441,6 +444,17 @@ lanes with the same dependency can run simultaneously.
     convention.
   - *Tests:* N/A (docs) — verify links resolve and the schema matches the code.
   - *Demo:* A new contributor can run engine + visualizer from this doc alone.
+  - *Result:* Synced the doc with the shipped code: §2 now states that **track E reads
+    `CyberJam_Band` via the Web MIDI API (input-only)** rather than treating MIDI as reference-only;
+    §6 "Running" dropped the stale "Sprint 0 only" note, switched the dev-server example to **Fish**,
+    documents the status-bar **Enable Audio** / **Connect Band MIDI** actions, and adds **§6.1
+    engine-less testing** via the `?mock` flag (`http://localhost:5173/?mock#/visualizer`, backed by
+    `src/dev/mockFeed.ts`); §7 fixed the stale branch example and noted the input-only MIDI + mock
+    option. The [`docs/README.md`](./README.md) index entry was extended to mention the Web MIDI
+    (`CyberJam_Band`) input. Verified: all intra-doc links point to existing files
+    (`contracts-and-apis.md`, `audio-and-routing.md`, `README.md`, `../AGENTS.md`); the telemetry
+    schema in §2.1 matches `src/types.ts` `TelemetryFrame`; ports/labels (`ws://127.0.0.1:8080`,
+    `"CyberJam Visual Audio"`, `CyberJam_Band`) match `src/config.ts`; `npm test` 169 passing.
 
 ### Extension track E — Visualizer Experience (band ribbon, Adrian, flow)
 
@@ -605,7 +619,9 @@ wired into the view. Full suite **200 green**; `typecheck` + `build` green.
 ## 6. Running
 
 > [!NOTE]
-> Sprint 0 (shell + data layer) is implemented. Live telemetry/audio arrive in Tasks 3/6.
+> The full subsystem is implemented (Sprint 0 shell/data layer, Lane B Menu, Lane C Visualizer,
+> integration Tasks 9–10, and Extension track E). Live telemetry/audio/MIDI require the engine;
+> see the **engine-less** option below to exercise the UI without it.
 
 Start the Python engine with the virtual audio source so the browser can capture live audio (on the
 CachyOS install machine; Fish shell):
@@ -615,10 +631,10 @@ CachyOS install machine; Fish shell):
 pw-jack .venv/bin/python run_session.py --pipewire-loopback
 ```
 
-Start the React visualizer dev server (PowerShell shown for the Windows dev workstation; use the
-equivalent in Fish/Bash):
+Start the React visualizer dev server (Fish shell on the CachyOS workstation; use the Bash/
+PowerShell equivalent elsewhere):
 
-```powershell
+```fish
 # Terminal 2 — React visualizer (dev server)
 cd visualizer
 npm install
@@ -636,15 +652,35 @@ If the browser blocks the automatic popups, the launcher shows an **"Open both s
 one click (a user gesture) opens them. Allowing popups for `localhost` makes it fully automatic.
 Both windows run from the same dev-server instance and sync the `selection` live over
 BroadcastChannel; a change in the Menu window appears immediately in the Visualizer window. Each
-window connects to `ws://127.0.0.1:8080` for telemetry and prompts to enable audio from the
-`"CyberJam Visual Audio"` device.
+window connects to `ws://127.0.0.1:8080` for telemetry; the Visualizer's status bar exposes
+**Enable Audio** (captures the `"CyberJam Visual Audio"` device — needs a user gesture per the
+browser autoplay policy) and **Connect Band MIDI** (reads `CyberJam_Band` via Web MIDI).
+
+### 6.1 Engine-less testing (no Python engine)
+
+The data layer degrades gracefully when the engine is absent: the status bar shows
+`Engine offline` / `No audio device` / `No band port` with actionable hints, and nothing crashes.
+To also **animate** the Visualizer without an engine, append the `?mock` flag — a dev-only feed
+(`src/dev/mockFeed.ts`) synthesizes telemetry frames and band MIDI straight into the store:
+
+```fish
+# Dev server already running (npm run dev); open the Visualizer with the mock feed:
+# http://localhost:5173/?mock#/visualizer
+```
+
+Mock mode drives note visuals, the fretboard ribbon, the session overlay (lanes + BPM/key
+reference), and the HUD/rock-meter. The live **waveform** still needs a real audio input device, so
+it stays flat under mock mode unless you click **Enable Audio** and pick any microphone. The flag
+is inert without it and is excluded from normal use and production builds.
 
 ---
 
 ## 7. Repository Rule Notes
 
 - All work happens on a feature branch per [`AGENTS.md`](../AGENTS.md) (e.g.,
-  `feat/react-visualizer`).
-- The Python engine is never modified.
+  `feat/visualizer-next`); never commit to `main`.
+- The Python engine is never modified; the app only consumes documented contracts.
 - Raw UDP `:13000` is deliberately excluded (not browser-accessible).
 - Live audio requires the engine launched with `--pipewire-loopback`.
+- Band MIDI is read **input-only** via the Web MIDI API (`CyberJam_Band`); no new port is opened.
+- The UI can be exercised without the engine via the `?mock` dev feed (§6.1).
