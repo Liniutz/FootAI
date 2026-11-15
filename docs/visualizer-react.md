@@ -637,7 +637,11 @@ npm run dev
 The dev script starts the loopback-only session-control service on `127.0.0.1:8765` alongside Vite.
 Pressing **Start Session** starts the PipeWire virtual source using
 `scripts/setup_pipewire_loopback.sh`, then launches `./start_cyberjam.sh` (the supported in-process
-pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). The virtual source and engine are intentionally left running if browser windows close. Use **Stop
+pipeline: guitar passthrough, DSP, backing band, telemetry, and optional Magenta worker). For
+**fixed/stem songs** the Menu instead starts a **passthrough-only** session
+(`{"mode": "song", "passthrough_only": true}` → `--no-rnn --no-band`): the guitar still monitors live,
+but no RNN models or generated band play, and the browser plays the real stems (the visitor plays
+rhythm guitar over the full mix). The virtual source and engine are intentionally left running if browser windows close. Use **Stop
 Session** in the Menu to gracefully stop the engine, RNN worker, and virtual source together. Stopping
 the dev server stops only the control service.
 

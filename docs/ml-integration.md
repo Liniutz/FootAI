@@ -57,9 +57,15 @@ scripts/run_inprocess_session.py  --JSON--> scripts/rnn_worker.py
 * **Graceful degradation** — if the venv or bundles are missing, the client logs a warning
   and the algorithmic engine keeps the band playing.
 
+> **Fixed/stem songs disable the models.** The Menu starts those sessions with
+> `passthrough_only: true`, which launches the engine with `--no-rnn --no-band`
+> (`CYBERJAM_RNN=0`, `CYBERJAM_BAND=0`): only guitar passthrough and DSP/telemetry run, while the
+> real multitrack stems play in the browser. No generated drums/bass ever double the stems.
+
 | Env var | Default | Meaning |
 | :--- | :--- | :--- |
 | `CYBERJAM_RNN` | `1` | `0` disables the RNN worker entirely |
+| `CYBERJAM_BAND` | `1` | `0` runs passthrough-only: no synth band, no sequencer, no RNN |
 | `CYBERJAM_RNN_SET` | `cargo` | model set: `cargo` (fine-tuned) or `default` (stock Magenta) |
 | `CYBERJAM_RNN_PYTHON` | `.venv-magenta/bin/python` | interpreter that has TensorFlow |
 | `CYBERJAM_RNN_MODELS` | per model set | bundle directory override |

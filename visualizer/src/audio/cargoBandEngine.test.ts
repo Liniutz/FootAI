@@ -3,7 +3,6 @@ import {
   CargoBandEngine,
   isCargoEngineFrame,
   validateSongMap,
-  type CargoTransport,
 } from "./cargoBandEngine";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -22,14 +21,54 @@ describe("Cargo audio contracts", () => {
   });
 });
 
-function fakePlayer() {
-  return {
-    loaded: true,
+type FakeAudio = {
+  readyState: number;
+  paused: boolean;
+  currentTime: number;
+  playbackRate: number;
+  volume: number;
+  play: ReturnType<typeof vi.fn>;
+  pause: ReturnType<typeof vi.fn>;
+  load: ReturnType<typeof vi.fn>;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+};
+
+function fakeAudio(): FakeAudio {
+  const audio: FakeAudio = {
+    readyState: 4,
+    paused: true,
+    currentTime: 0,
     playbackRate: 1,
-    volume: { rampTo: () => {} },
+    volume: 0.85,
+    play: vi.fn(async () => {
+      audio.paused = false;
+    }),
+    pause: vi.fn(() => {
+      audio.paused = true;
+    }),
+    load: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  };
+  return audio;
+}
+
+function fakePlayer() {
+  const audio = fakeAudio();
+  return {
+    audio,
+    loaded: true,
+    get playbackRate() {
+      return audio.playbackRate;
+    },
+    set playbackRate(value: number) {
+      audio.playbackRate = value;
+    },
+    volume: { rampTo: (value: number) => { audio.volume = value; } },
     sync() { return this; },
     start() { return this; },
-    dispose: () => {},
+    dispose: vi.fn(),
   };
 }
 
@@ -46,30 +85,31 @@ function stubStemFetch() {
   })));
 }
 
-describe("CargoBandEngine transport lifecycle", () => {
-  it("stops (and rewinds) before every load so a second START still plays", async () => {
-    const calls: string[] = [];
-    const transport: CargoTransport = {
-      start: () => calls.push("start"),
-      stop: () => calls.push("stop"),
-      seconds: 0,
-    };
+describe("CargoBandEngine HTMLAudio playback", () => {
+  it("loads six stems and starts them from the beginning on play", async () => {
     stubStemFetch();
-    const engine = new CargoBandEngine(
-      { playerFactory: () => fakePlayer() as never },
-      transport,
-    );
+    const created: ReturnType<typeof fakePlayer>[] = [];
+    const engine = new CargoBandEngine({
+      playerFactory: () => {
+        const player = fakePlayer();
+        created.push(player);
+        return player as never;
+      },
+    });
 
     await engine.loadSong("ziua_vrajitoarelor");
     await engine.play();
-    // Retry / second START: the transport must be stopped+rewound again,
-    // otherwise the time-0 synced stems are scheduled in the past.
-    await engine.loadSong("ziua_vrajitoarelor");
-    await engine.play();
 
-    expect(calls).toEqual(["stop", "start", "stop", "start"]);
-    expect(engine.loadedSong?.id).toBe("track");
-    engine.dispose();
+    expect(created).toHaveLength(6);
+    expect(created.every((player) => player.audio.play.mock.calls.length === 1)).toBe(true);
+    expect(created.every((player) => player.audio.currentTime === 0)).toBe(true);
+    const diag = await engine.diagnostics();
+    expect(diag.stems).toBe(6);
+    // All six stems are audible: the visitor plays rhythm over the full mix.
+    expect(diag.levels.drums).toBeGreaterThan(0);
+    expect(diag.levels.bass).toBeGreaterThan(0);
+    expect(diag.levels.vocals).toBeGreaterThan(0);
+    expect(diag.levels.guitar).toBeGreaterThan(0);
   });
 
   it("fails loudly when a stem file is missing", async () => {
@@ -78,11 +118,28 @@ describe("CargoBandEngine transport lifecycle", () => {
       status: String(url).endsWith("drums.wav") ? 404 : 200,
       json: async () => ({ id: "t", base_bpm: 120, beats: [0, 1, 2, 3], chords: [{ time: 0, chord: "E5", pitch_class: 4 }] }),
     })));
-    const engine = new CargoBandEngine(
-      { playerFactory: () => fakePlayer() as never },
-      { start: () => {}, stop: () => {}, seconds: 0 },
-    );
+    const engine = new CargoBandEngine({ playerFactory: () => fakePlayer() as never });
     await expect(engine.loadSong("ghost")).rejects.toThrow(/Missing drums\.wav/);
     engine.dispose();
+  });
+
+  it("updates playbackRate and guitar volume from the live guitar-engine feed", async () => {
+    stubStemFetch();
+    const created: ReturnType<typeof fakePlayer>[] = [];
+    const socketFactory = vi.fn((() => ({ readyState: 1, send: vi.fn(), close: vi.fn() })) as unknown as () => WebSocket);
+    const engine = new CargoBandEngine({
+      playerFactory: () => {
+        const player = fakePlayer();
+        created.push(player);
+        return player as never;
+      },
+      socketFactory,
+    });
+    await engine.loadSong("ziua_vrajitoarelor");
+    engine.connectToGuitarEngine();
+    const socket = socketFactory.mock.results[0]?.value as { onmessage?: (event: { data: string }) => void } | undefined;
+    if (!socket?.onmessage) throw new Error("socket handler missing");
+    socket.onmessage({ data: JSON.stringify({ live_bpm: 180, is_playing: true, energy: 0.6, detected_pitch_class: 4 }) });
+    expect(created.every((player) => player.audio.playbackRate > 1)).toBe(true);
   });
 });

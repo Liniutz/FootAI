@@ -64,6 +64,7 @@ export function MenuView() {
   const [stopMessage, setStopMessage] = useState<string | null>(null);
   const [cargoLoading, setCargoLoading] = useState(false);
   const [cargoError, setCargoError] = useState<string | null>(null);
+  const [monitorWarning, setMonitorWarning] = useState<string | null>(null);
   const [cargoVisual, setCargoVisual] = useState<CargoVisualState | null>(null);
   const selectedSong = getSongById(selection.songId ?? "");
   const cargoEngineRef = useRef<CargoBandEngine | null>(null);
@@ -131,18 +132,19 @@ export function MenuView() {
         // Blocked audio is surfaced when playback is attempted.
       }
     }
-    const result = await startEngineSession(isFreestyleSong(selection.songId) ? "freestyle" : "song");
-    setStarting(false);
-    if (result.running) {
-      setStopMessage("Session live on TV.");
-    }
-    // Stem songs play their real multitrack audio on START regardless of the
-    // engine session; the generated band is a fallback, not a gate.
     if (stemSong) {
+      setStarting(false);
       setCargoLoading(true);
       setCargoError(null);
+      setMonitorWarning(null);
+      const engine = cargoEngineRef.current;
+      // The fixed song plays real multitrack stems in the browser. In parallel,
+      // bring the engine up in passthrough-only mode so the live guitar is still
+      // audible: no RNN worker, no generated band, no drum/bass models.
+      const monitorPromise = startEngineSession("song", undefined, {
+        passthroughOnly: true,
+      });
       try {
-        const engine = cargoEngineRef.current;
         if (!engine) throw new Error("Cargo audio engine is not ready.");
         await engine.loadSong(stemSong);
         engine.connectToGuitarEngine();
@@ -153,14 +155,25 @@ export function MenuView() {
             `Browser blocked audio (context ${diag.context}). Click START again to allow sound.`,
           );
         } else {
-          setStopMessage("Session and Cargo stems live on TV.");
+          setStopMessage("Cargo backing track live on TV.");
         }
       } catch (error) {
         setCargoError(error instanceof Error ? error.message : "Cargo stems could not be loaded.");
       } finally {
         setCargoLoading(false);
       }
+      // Stems never depend on the engine; surface a monitor-only warning if the
+      // passthrough service is unavailable.
+      const monitor = await monitorPromise;
+      if (!monitor.running) {
+        setMonitorWarning(monitor.error ?? "engine passthrough did not start");
+      }
       return;
+    }
+    const result = await startEngineSession(isFreestyleSong(selection.songId) ? "freestyle" : "song");
+    setStarting(false);
+    if (result.running) {
+      setStopMessage("Session live on TV.");
     }
     if (!result.running) {
       setStartError(result.error ?? "Could not start the CyberJam engine.");
@@ -313,6 +326,9 @@ export function MenuView() {
 
       {cargoLoading && <p className="rs-hint">Loading Cargo stems…</p>}
       {cargoError && <p className="rs-hint" role="alert">Cargo audio unavailable: {cargoError}</p>}
+      {monitorWarning && (
+        <p className="rs-hint">Guitar monitor unavailable: {monitorWarning}</p>
+      )}
       {cargoVisual && (
         <p className="rs-hint" aria-live="polite">
           Chord {cargoVisual.currentChord} → {cargoVisual.nextChord}

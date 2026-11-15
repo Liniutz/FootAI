@@ -1,5 +1,19 @@
 /** Client for the loopback session-control helper used by Start Session. */
-export type SessionControlResult = { running: boolean; error?: string };
+export type SessionControlResult = {
+  running: boolean;
+  error?: string;
+  started?: boolean;
+  passthroughOnly?: boolean;
+};
+
+export interface StartSessionOptions {
+  /**
+   * Start the engine for guitar monitoring/DSP only: the RNN worker and the
+   * generated backing band stay off because a fixed song's stems play in the
+   * browser.
+   */
+  passthroughOnly?: boolean;
+}
 
 export async function stopEngineSession(
   fetcher: typeof fetch = fetch,
@@ -26,13 +40,17 @@ export async function stopEngineSession(
 export async function startEngineSession(
   mode: "freestyle" | "song" = "song",
   fetcher: typeof fetch = fetch,
+  options: StartSessionOptions = {},
 ): Promise<SessionControlResult> {
   let response: Response;
   try {
     response = await fetcher("/api/session/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode }),
+      body: JSON.stringify({
+        mode,
+        ...(options.passthroughOnly ? { passthrough_only: true } : {}),
+      }),
     });
   } catch {
     return {

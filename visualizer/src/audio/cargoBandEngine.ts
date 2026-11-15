@@ -17,65 +17,45 @@ export interface CargoVisualState {
   detectedPitchClass: number;
 }
 
-interface GrainPlayerLike {
-  sync(): GrainPlayerLike;
-  start(time?: number): GrainPlayerLike;
-  dispose(): void;
+interface HtmlStemPlayer {
+  audio: HTMLAudioElement;
   playbackRate: number;
-  volume: { rampTo(value: number, duration: number): void };
-  /** Load completion signals; Tone exposes these on the underlying player. */
-  loaded?: boolean;
-  onload?: () => void;
-  onerror?: (error: unknown) => void;
+  readonly loaded: boolean;
+  readonly volume: { rampTo(value: number, duration?: number): void };
+  sync(): HtmlStemPlayer;
+  start(time?: number): HtmlStemPlayer;
+  dispose(): void;
 }
-
-export type CargoPlayerFactory = (
-  url: string,
-  stem: CargoStem,
-  onLoad: () => void,
-  onError: (error: unknown) => void,
-) => GrainPlayerLike | Promise<GrainPlayerLike>;
 
 export interface CargoBandOptions {
   baseUrl?: string;
   socketFactory?: (url: string) => WebSocket;
-  playerFactory?: CargoPlayerFactory;
+  playerFactory?: (url: string, stem: CargoStem) => HtmlStemPlayer;
   onVisualUpdate?: (state: CargoVisualState) => void;
-}
-
-/** Minimal transport surface, injected so tests and non-Tone players can run headlessly. */
-export interface CargoTransport {
-  start(): void;
-  /** Stop AND rewind: synced sources are scheduled at transport time 0. */
-  stop(): void;
-  readonly seconds: number;
 }
 
 /** Optional stems playback and the isolated Cargo guitar-engine websocket client. */
 export class CargoBandEngine {
   private readonly baseUrl: string;
   private readonly socketFactory: (url: string) => WebSocket;
-  private readonly playerFactory: CargoPlayerFactory;
-  private transport: CargoTransport | null = null;
+  private readonly playerFactory: (url: string, stem: CargoStem) => HtmlStemPlayer;
   private readonly onVisualUpdate?: (state: CargoVisualState) => void;
-  private players: Partial<Record<CargoStem, GrainPlayerLike>> = {};
+  private players: Partial<Record<CargoStem, HtmlStemPlayer>> = {};
   private songMap: CargoSongMap | null = null;
   private socket: WebSocket | null = null;
-  private analyser: { getValue(): Float32Array | Float32Array[] | number; dispose(): void } | null = null;
+  private audioContext: AudioContext | null = null;
+  private analyser: AnalyserNode | null = null;
+  private analyserSource: MediaStreamAudioSourceNode | null = null;
+  private meterData: Uint8Array | null = null;
   private generation = 0;
+  private playbackPositionSeconds = 0;
+  private isPlaying = false;
 
-  constructor(options: CargoBandOptions = {}, transport?: CargoTransport) {
+  constructor(options: CargoBandOptions = {}) {
     this.baseUrl = (options.baseUrl ?? "").replace(/\/$/, "");
     this.socketFactory = options.socketFactory ?? ((url) => new WebSocket(url));
-    this.playerFactory = options.playerFactory ?? defaultPlayerFactory;
-    this.transport = transport ?? null;
+    this.playerFactory = options.playerFactory ?? ((url, stem) => createHtmlStemPlayer(url, stem));
     this.onVisualUpdate = options.onVisualUpdate;
-  }
-
-  private async ensureTransport(): Promise<CargoTransport> {
-    if (this.transport) return this.transport;
-    this.transport = await createToneTransport();
-    return this.transport;
   }
 
   get loadedSong(): CargoSongMap | null {
@@ -84,13 +64,7 @@ export class CargoBandEngine {
 
   async loadSong(slug: string): Promise<void> {
     const generation = ++this.generation;
-    await ensureToneStarted();
-    Object.values(this.players).forEach((player) => {
-      try { player?.dispose(); } catch { /* ignore teardown errors */ }
-    });
-    this.players = {};
-    this.songMap = null;
-    (await this.ensureTransport()).stop();
+    this.stop();
     const safeSlug = slug.split("/").map(encodeURIComponent).join("/");
     const mapResponse = await fetch(`${this.baseUrl}/${safeSlug}/song_map.json`);
     if (!mapResponse.ok) throw new Error(`Song map unavailable (${mapResponse.status})`);
@@ -104,21 +78,16 @@ export class CargoBandEngine {
     }));
 
     if (generation !== this.generation) return;
-    const players: Partial<Record<CargoStem, GrainPlayerLike>> = {};
+    const players: Partial<Record<CargoStem, HtmlStemPlayer>> = {};
     try {
       await Promise.all(checked.map(async ([stem, url]) => {
-        let settlePlayer: (() => void) | null = null;
-        const player = await this.playerFactory(url, stem, () => settlePlayer?.(), () => {});
+        const player = this.playerFactory(url, stem);
         players[stem] = player;
-        player.sync().start(0);
-        await new Promise<void>((resolve, reject) => {
-          if (player.loaded === true) {
-            resolve();
-            return;
-          }
-          settlePlayer = resolve;
-          player.onerror = (error) => reject(error instanceof Error ? error : new Error(`Could not load ${stem}.wav`));
-        });
+        // Apply the mix here so custom player factories behave identically.
+        player.volume.rampTo(STEM_GAIN[stem]);
+        if (!player.loaded) {
+          await waitForAudio(player.audio, stem);
+        }
       }));
     } catch (error) {
       Object.values(players).forEach((player) => player?.dispose());
@@ -131,6 +100,8 @@ export class CargoBandEngine {
     }
     this.players = players;
     this.songMap = songMap;
+    this.playbackPositionSeconds = 0;
+    this.isPlaying = false;
     this.sendBaseBpm(songMap.base_bpm);
   }
 
@@ -147,9 +118,9 @@ export class CargoBandEngine {
         const player = this.players[stem];
         if (player) player.playbackRate = rate;
       });
-      this.players.guitar?.volume.rampTo(frame.is_playing ? -14 : -1.5, 0.25);
+      // The visitor is the lead guitar: keep the recorded guitar stem muted.
 
-      const now = this.transport?.seconds ?? 0;
+      const now = this.currentPlaybackSeconds();
       let index = -1;
       for (let i = 0; i < this.songMap.chords.length; i += 1) {
         if (this.songMap.chords[i].time <= now) index = i;
@@ -174,70 +145,110 @@ export class CargoBandEngine {
     };
   }
 
-  /**
-   * Resume the Web Audio context. Await this inside the user gesture that
-   * triggers playback (a button click) — browsers only allow it while a
-   * transient activation is live, which is gone after any slow network call.
-   */
   async resumeAudio(): Promise<void> {
-    await ensureToneStarted();
+    // Create/resume the metering context inside the click gesture. Playback
+    // itself is plain HTMLAudio and does not depend on it.
+    if (typeof window === "undefined") return;
+    type AudioWindow = typeof window & { webkitAudioContext?: typeof AudioContext };
+    const AudioContextClass =
+      window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!this.audioContext) {
+      try {
+        this.audioContext = new AudioContextClass();
+      } catch {
+        return;
+      }
+    }
+    if (this.audioContext.state === "suspended") {
+      try {
+        await this.audioContext.resume();
+      } catch {
+        // Stems still play through the element itself.
+      }
+    }
   }
 
-  /** Start Transport playback of the loaded stems (resume audio first). */
   async play(): Promise<void> {
-    await ensureToneStarted();
-    const transport = await this.ensureTransport();
-    transport.start();
+    const players = Object.values(this.players);
+    if (players.length === 0) throw new Error("No Cargo stems loaded.");
+
+    // Lead with the drums: it is always present, so the analyser always sees signal.
+    const first = this.players.drums ?? players[0];
+    const rest = players.filter((player) => player !== first);
+    // Start all at the stored position; await the first one for the user-gesture promise.
+    syncCurrentTimes(players, this.playbackPositionSeconds);
+    await first.audio.play();
+    await Promise.all(rest.map((player) => player.audio.play()));
+    this.isPlaying = true;
+    this.ensureAnalyser(first.audio);
   }
 
-  /** Operator-facing diagnostics: is the browser actually letting us make sound? */
-  async diagnostics(): Promise<{ context: string; transport: string; stems: number }> {
-    const Tone = await import("tone");
-    const transport = (Tone as { Transport?: { state?: string } }).Transport;
+  async diagnostics(): Promise<{
+    context: string;
+    transport: string;
+    stems: number;
+    position: number;
+    levels: Partial<Record<CargoStem, number>>;
+  }> {
+    const drums = this.players.drums?.audio;
+    const context = drums?.paused ? "suspended" : "running";
+    const levels: Partial<Record<CargoStem, number>> = {};
+    (Object.keys(this.players) as CargoStem[]).forEach((stem) => {
+      const player = this.players[stem];
+      if (player) levels[stem] = Number(player.audio.volume.toFixed(2));
+    });
     return {
-      context: Tone.getContext().state,
-      transport: transport?.state ?? "missing",
+      context,
+      transport: this.isPlaying ? "started" : "stopped",
       stems: Object.keys(this.players).length,
+      // Advances only when the element really plays, so it proves audio output.
+      position: Number((drums?.currentTime ?? 0).toFixed(2)),
+      levels,
     };
   }
 
-  /** RMS of the master output (0..1) — proves whether audio is really flowing. */
   async outputLevel(): Promise<number> {
-    const Tone = await import("tone");
-    if (!this.analyser) {
-      const analyser = new Tone.Analyser("waveform", 1024);
-      Tone.getDestination().connect(analyser);
-      this.analyser = analyser;
-    }
-    const analyser = this.analyser;
-    if (!analyser) return 0;
-    const value = analyser.getValue();
-    if (!(value instanceof Float32Array)) return 0;
+    if (!this.analyser || !this.meterData) return 0;
+    this.analyser.getByteTimeDomainData(this.meterData);
     let sum = 0;
-    for (let i = 0; i < value.length; i += 1) sum += value[i] * value[i];
-    return Math.sqrt(sum / value.length);
+    for (let i = 0; i < this.meterData.length; i += 1) {
+      const centered = (this.meterData[i] - 128) / 128;
+      sum += centered * centered;
+    }
+    return Math.sqrt(sum / this.meterData.length);
   }
 
   stop(): void {
-    this.ensureTransport()
-      .then((transport) => transport.stop())
-      .catch(() => {
-        // Audio is optional; headless/test environments may not expose one.
-      });
+    if (this.isPlaying) {
+      this.playbackPositionSeconds = this.currentPlaybackSeconds();
+    }
+    this.disconnectAnalyser();
+    Object.values(this.players).forEach((player) => {
+      try {
+        player.audio.pause();
+        player.audio.currentTime = 0;
+      } catch {
+        /* ignore */
+      }
+    });
+    this.playbackPositionSeconds = 0;
+    this.isPlaying = false;
+    this.songMap = null;
     Object.values(this.players).forEach((player) => {
       try { player?.dispose(); } catch { /* ignore teardown errors */ }
     });
     this.players = {};
-    this.songMap = null;
   }
 
   dispose(): void {
     this.generation += 1;
     this.stop();
-    if (this.analyser) {
-      try { this.analyser.dispose(); } catch { /* ignore teardown errors */ }
-      this.analyser = null;
+    this.disconnectAnalyser();
+    if (this.audioContext) {
+      void this.audioContext.close().catch(() => {});
     }
+    this.audioContext = null;
     if (this.socket) {
       this.socket.onopen = null;
       this.socket.onmessage = null;
@@ -248,68 +259,138 @@ export class CargoBandEngine {
     }
   }
 
+  private currentPlaybackSeconds(): number {
+    if (!this.isPlaying || !this.players.drums) return this.playbackPositionSeconds;
+    return this.players.drums.audio.currentTime || this.playbackPositionSeconds;
+  }
+
   private sendBaseBpm(bpm: number): void {
     if (this.socket?.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({ base_bpm: bpm }));
     }
   }
+
+  private ensureAnalyser(audio: HTMLAudioElement): void {
+    if (typeof window === "undefined") return;
+    const context = this.audioContext;
+    // Only meter through a *running* context. A suspended context with a
+    // MediaElementSource would silently mute the element it is attached to.
+    if (!context || context.state !== "running") return;
+    const capture = (
+      audio as HTMLAudioElement & { captureStream?: () => MediaStream }
+    ).captureStream;
+    if (typeof capture !== "function") return;
+    try {
+      const stream = capture.call(audio);
+      const source = context.createMediaStreamSource(stream);
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      // Tap the stream into the analyser only: the element keeps playing to the
+      // device directly, so metering can never mute or double the audio.
+      source.connect(analyser);
+      this.analyserSource = source;
+      this.analyser = analyser;
+      this.meterData = new Uint8Array(analyser.frequencyBinCount * 2);
+    } catch {
+      // Metering is optional; never let it affect playback.
+    }
+  }
+
+  private disconnectAnalyser(): void {
+    try {
+      this.analyserSource?.disconnect();
+    } catch {
+      /* ignore */
+    }
+    this.analyserSource = null;
+    this.analyser = null;
+    this.meterData = null;
+  }
 }
 
 /**
- * Resume the Web Audio context. Called on every playback entry point: it is
- * idempotent, and re-calling it inside a fresh user gesture is what actually
- * unblocks a suspended context (the first attempt may have happened outside
- * any gesture, e.g. while a view was mounting).
+ * Per-stem mix levels. The visitor plays rhythm guitar, so the recorded
+ * guitar stem (lead + double) stays in the mix. Every stem is audible.
  */
-async function ensureToneStarted(): Promise<void> {
-  const Tone = await import("tone");
-  await Tone.start();
-}
+const STEM_GAIN: Record<CargoStem, number> = {
+  drums: 0.9,
+  bass: 0.85,
+  vocals: 0.85,
+  guitar: 0.85,
+  piano: 0.85,
+  other: 0.85,
+};
 
-async function defaultPlayerFactory(
-  url: string,
-  _stem: CargoStem,
-  onLoad: () => void,
-  onError: (error: unknown) => void,
-): Promise<GrainPlayerLike> {
-  return createTonePlayer(url, onLoad, onError);
-}
-
-async function createToneTransport(): Promise<CargoTransport> {
-  const Tone = await import("tone");
-  const transport = (Tone as {
-    Transport?: { start(): void; stop(): void; seconds: number; ticks: number };
-  }).Transport;
-  if (!transport || typeof transport.stop !== "function") {
-    // Headless/test environments: keep the engine functional without audio.
-    return { start: () => {}, stop: () => {}, seconds: 0 };
-  }
+function createHtmlStemPlayer(url: string, stem: CargoStem): HtmlStemPlayer {
+  const audio = new Audio(url);
+  audio.preload = "auto";
+  audio.crossOrigin = "anonymous";
+  audio.loop = false;
+  audio.volume = Math.max(0, Math.min(1, STEM_GAIN[stem] ?? 0.85));
   return {
-    start: () => transport.start(),
-    stop: () => {
-      transport.stop();
-      // Tone's Transport.stop() keeps the playhead where it was. The stems are
-      // scheduled with sync().start(0), so without rewinding, a second START
-      // (or a START after Stop) would schedule them in the past and stay silent.
-      transport.ticks = 0;
+    audio,
+    get loaded() {
+      return audio.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA;
     },
-    get seconds() { return transport.seconds; },
+    get playbackRate() {
+      return audio.playbackRate;
+    },
+    set playbackRate(value: number) {
+      audio.playbackRate = value;
+      if (audio.preservesPitch !== undefined) audio.preservesPitch = false;
+      const moz = audio as HTMLAudioElement & { mozPreservesPitch?: boolean; webkitPreservesPitch?: boolean };
+      if (moz.mozPreservesPitch !== undefined) moz.mozPreservesPitch = false;
+      if (moz.webkitPreservesPitch !== undefined) moz.webkitPreservesPitch = false;
+    },
+    volume: {
+      rampTo(value: number) {
+        audio.volume = Math.max(0, Math.min(1, value));
+      },
+    },
+    sync() {
+      return this;
+    },
+    start() {
+      return this;
+    },
+    dispose() {
+      audio.pause();
+      audio.src = "";
+      audio.load();
+    },
   };
 }
 
-async function createTonePlayer(
-  url: string,
-  onLoad: () => void,
-  onError: (error: unknown) => void,
-): Promise<GrainPlayerLike> {
-  const Tone = await import("tone");
-  return new Tone.GrainPlayer({
-    url,
-    grainSize: 0.1,
-    overlap: 0.05,
-    onload: onLoad,
-    onerror: onError,
-  }).toDestination() as unknown as GrainPlayerLike;
+function syncCurrentTimes(players: HtmlStemPlayer[], seconds: number): void {
+  players.forEach((player) => {
+    try {
+      player.audio.currentTime = seconds;
+    } catch {
+      // ignore seeks before metadata settles; waitForAudio covers initial load.
+    }
+  });
+}
+
+function waitForAudio(audio: HTMLAudioElement, stem: CargoStem): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      audio.removeEventListener("canplaythrough", onLoad);
+      audio.removeEventListener("loadeddata", onLoad);
+      audio.removeEventListener("error", onError);
+    };
+    const onLoad = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error(`Could not load ${stem}.wav`));
+    };
+    audio.addEventListener("canplaythrough", onLoad, { once: true });
+    audio.addEventListener("loadeddata", onLoad, { once: true });
+    audio.addEventListener("error", onError, { once: true });
+    audio.load();
+  });
 }
 
 export function validateSongMap(raw: unknown): CargoSongMap {
