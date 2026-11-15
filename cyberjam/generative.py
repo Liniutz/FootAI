@@ -207,7 +207,9 @@ class LiveGrooveGenerator:
 
         events.append(MidiStepEvent(0, GM_KICK, self._humanise(112)))
         events.append(MidiStepEvent(8, GM_KICK, self._humanise(102)))
-        events.append(MidiStepEvent(4, GM_SNARE, self._humanise(106)))
+        events.append(MidiStepEvent(0, GM_SNARE, self._humanise(116)))
+        events.append(MidiStepEvent(4, GM_SNARE, self._humanise(104)))
+        events.append(MidiStepEvent(8, GM_SNARE, self._humanise(110)))
         events.append(MidiStepEvent(12, GM_SNARE, self._humanise(112)))
 
         if self._bar % 4 == 0:
