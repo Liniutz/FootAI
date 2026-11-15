@@ -68,7 +68,7 @@ class TestLiveGrooveGenerator(unittest.TestCase):
             hats = sorted(e.step for e in drums if e.note == 42)
             # Two kicks per bar, no double pedal.
             self.assertEqual(kicks, [0, 8])
-            self.assertEqual(snares, [4, 12])
+            self.assertEqual(snares, [0, 4, 8, 12])
             self.assertTrue(all(step % 2 == 0 for step in hats))
             self.assertTrue(set(e.note for e in drums) <= {36, 38, 42, 49})
 

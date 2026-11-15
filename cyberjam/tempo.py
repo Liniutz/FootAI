@@ -17,10 +17,10 @@ from collections import deque
 
 import numpy as np
 
-MIN_BPM = 60.0
+MIN_BPM = 40.0
 MAX_BPM = 180.0
-PRIOR_BPM = 110.0
-PRIOR_WIDTH_OCT = 1.4  # std-dev of the log2 prior in octaves (soft, never excludes a tempo)
+PRIOR_BPM = 88.0
+PRIOR_WIDTH_OCT = 1.2  # std-dev of the log2 prior in octaves (soft, never excludes a tempo)
 
 # Comb weights over lag multiples of the beat period: (multiple, weight).
 # Tuned on strummed patterns and riffs: favoring 1x/2x/3x and slightly penalising
@@ -88,6 +88,19 @@ def estimate_bpm(
     best = int(np.argmax(weighted))
     if weighted[best] <= 0.0:
         return None
+
+    # Octave disambiguation: an 8th-note strum also correlates at half and double
+    # the beat. Among readings within 15% of the best score, take the one closest
+    # to the prior, so 69 BPM strums stay 69 instead of jumping to 138.
+    threshold = 0.85 * weighted[best]
+    candidates: list[int] = [best]
+    for factor in (0.5, 2.0):
+        index = int(round((bpms[best] * factor - min_bpm) / 0.5))
+        if 0 <= index < len(bpms) and weighted[index] >= threshold:
+            candidates.append(index)
+    if len(candidates) > 1:
+        best = min(candidates, key=lambda i: abs(np.log2(bpms[i] / prior_bpm)))
+
     median = float(np.median(weighted))
     confidence = float(weighted[best] / median) if median > 1e-9 else float("inf")
     return float(bpms[best]), confidence

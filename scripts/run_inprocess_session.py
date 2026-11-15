@@ -57,7 +57,7 @@ OUTPUT_DEVICES = [
 SAMPLE_RATE = 48000
 # Small blocks + low-latency streams are the single biggest win for guitar
 # monitoring delay: 512/default measured ~43 ms per direction, 256/low ~11 ms.
-BLOCK_SIZE = int(os.environ.get("CYBERJAM_BLOCK", "256"))
+BLOCK_SIZE = int(os.environ.get("CYBERJAM_BLOCK", "128"))
 STREAM_LATENCY = os.environ.get("CYBERJAM_LATENCY", "low") or None
 # Software monitoring. Disable when the interface's Direct Monitor is on,
 # otherwise you hear the guitar twice (hardware + software) as a slapback.
@@ -112,6 +112,9 @@ LEAD_ENABLED = os.environ.get("CYBERJAM_LEAD", "0") == "1"
 DEMO_MODE = os.environ.get("CYBERJAM_DEMO", "0") == "1"
 # Freestyle defaults to twice the original two-bar capture (four bars total).
 DEMO_BARS = int(os.environ.get("CYBERJAM_DEMO_BARS", "4"))
+# Manual tempo scaling: 0.5 halves the detected tempo (half-time feel for slow
+# ballads), 2.0 doubles it. Escape hatch for ambiguous detections.
+BPM_FACTOR = float(os.environ.get("CYBERJAM_BPM_FACTOR", "1.0"))
 
 # Sound selection. GeneralUser GS ships several kits in percussion bank 128;
 # "power" is the rock kit used by default.
@@ -146,6 +149,13 @@ def resolve_drum_preset(kit: str) -> int:
     if value.isdigit():
         return int(value) % 128
     return DRUM_KITS.get(value, DRUM_KITS["power"])
+
+
+def _fmt_latency(seconds: float) -> str:
+    """PortAudio reports -1 (or garbage) when a device has no latency figure."""
+    if seconds is None or seconds < 0 or seconds > 5:
+        return "latency n/a"
+    return f"{seconds * 1000.0:.1f} ms"
 
 
 def _resolve_device(query: str, need_input: bool) -> int | None:
@@ -239,6 +249,10 @@ class InProcessCyberJamSession:
         self._monitor_names: list[str] = []
         # Preallocated buffer so the audio callback does not allocate.
         self._mix_buffer = np.zeros((BLOCK_SIZE * 4, 2), dtype=np.float32)
+        # Passthrough blocks are handed to a writer thread: writing to a slow
+        # (PipeWire) output from the capture callback blocks long enough to
+        # overrun the input, which makes PortAudio abort on `neverDropInput`.
+        self._passthrough_q: queue.Queue[np.ndarray] = queue.Queue(maxsize=3)
 
     # ------------------------------------------------------------------ synth
     def _init_synth(self) -> None:
@@ -356,6 +370,19 @@ class InProcessCyberJamSession:
             logger.warning("Could not set FluidSynth gain (%s); band stays at default level.", exc)
 
     # ------------------------------------------------------------- audio path
+    @staticmethod
+    def _stream_settings(device_name: str) -> tuple[int, str | None]:
+        """Pick block size / latency per device backend.
+
+        The PipeWire ALSA plugin aborts PortAudio (`neverDropInput` assertion)
+        when it xruns at very small buffers, so PipeWire-backed devices get a
+        larger block and the device's default latency. Direct `hw:` devices are
+        stable at the low-latency minimum.
+        """
+        if "(hw:" in device_name:
+            return BLOCK_SIZE, STREAM_LATENCY
+        return max(BLOCK_SIZE, 256), STREAM_LATENCY
+
     def _open_streams(self, input_device: str, output_devices: list[str]) -> None:
         """Open the capture stream plus one output stream per monitor device.
 
@@ -373,21 +400,24 @@ class InProcessCyberJamSession:
             if out_idx is None:
                 logger.warning("Monitor output %r not found, skipping.", dev)
                 continue
+            name = sd.query_devices(out_idx)["name"]
+            block, latency = self._stream_settings(name)
             try:
                 stream = sd.OutputStream(
                     device=out_idx,
                     channels=2,
                     samplerate=SAMPLE_RATE,
-                    blocksize=BLOCK_SIZE,
+                    blocksize=block,
                     dtype="float32",
-                    latency=STREAM_LATENCY,
+                    latency=latency,
                 )
                 stream.start()
-                self._out_streams.append((sd.query_devices(out_idx)["name"], stream))
+                self._out_streams.append((name, stream))
                 logger.info(
-                    "Monitor output open: %s (%.1f ms)",
-                    sd.query_devices(out_idx)["name"],
-                    stream.latency * 1000.0,
+                    "Monitor output open: %s (%s, block %d)",
+                    name,
+                    _fmt_latency(stream.latency),
+                    block,
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("Monitor output %r unavailable: %s", dev, exc)
@@ -395,23 +425,25 @@ class InProcessCyberJamSession:
         if not self._out_streams:
             raise RuntimeError("no output device could be opened")
 
+        in_name = sd.query_devices(in_idx)["name"]
+        in_block, in_latency = self._stream_settings(in_name)
         self._in_stream = sd.InputStream(
             device=in_idx,
             channels=2,
             samplerate=SAMPLE_RATE,
-            blocksize=BLOCK_SIZE,
+            blocksize=in_block,
             dtype="float32",
-            latency=STREAM_LATENCY,
+            latency=in_latency,
             callback=self._input_callback,
         )
         self._in_stream.start()
-        self._capture_name = sd.query_devices(in_idx)["name"]
+        self._capture_name = in_name
         self._monitor_names = [name for name, _ in self._out_streams]
         logger.info(
-            "Capture input open: %s (%.1f ms) | block %.1f ms",
+            "Capture input open: %s (%s) | block %.1f ms",
             self._capture_name,
-            self._in_stream.latency * 1000.0,
-            BLOCK_SIZE / SAMPLE_RATE * 1000.0,
+            _fmt_latency(self._in_stream.latency),
+            in_block / SAMPLE_RATE * 1000.0,
         )
         if "(hw:" not in self._capture_name:
             logger.warning(
@@ -444,12 +476,13 @@ class InProcessCyberJamSession:
                 else:
                     block = np.clip(indata * GUITAR_GAIN, -1.0, 1.0)
 
-            for _name, stream in self._out_streams:
-                if not stream.active:
-                    continue
+            try:
+                self._passthrough_q.put_nowait(np.array(block, dtype=np.float32))
+            except queue.Full:
                 try:
-                    stream.write(block)
-                except Exception:
+                    self._passthrough_q.get_nowait()
+                    self._passthrough_q.put_nowait(np.array(block, dtype=np.float32))
+                except queue.Empty:
                     pass
 
         # Same block goes to the DSP worker (tempo / key / pitch / RMS).
@@ -461,6 +494,21 @@ class InProcessCyberJamSession:
         else:
             mono = indata[:, 0] if indata.ndim > 1 else indata
         self.dsp.feed_audio(np.ascontiguousarray(mono, dtype=np.float32))
+
+    def _passthrough_loop(self) -> None:
+        """Write queued guitar blocks to every monitor output off the audio thread."""
+        while not self._synth_stop.is_set():
+            try:
+                block = self._passthrough_q.get(timeout=0.1)
+            except queue.Empty:
+                continue
+            for _name, stream in self._out_streams:
+                if not stream.active:
+                    continue
+                try:
+                    stream.write(block)
+                except Exception:
+                    pass
 
     def _play_test_tone(self) -> None:
         """Short beep on every monitor output so the player can confirm routing."""
@@ -498,6 +546,17 @@ class InProcessCyberJamSession:
         self.active_notes_timeline.clear()
         self._taps = [0] * 32
         self._tap_pos = 0
+        # Forget the previous tempo and phrase: playing again at a new BPM must
+        # be picked up instead of continuing the old groove.
+        self._phrase = None
+        self._phrase_pos = 0
+        self._phrase_len = 0
+        self._bar_events = ([], [])
+        self._lead_events = []
+        try:
+            self.dsp.reset_tempo()
+        except Exception:
+            pass
         if self._demo_mode:
             # Let the guided capture start over: prompt again on the next note.
             self._demo_phase = "wait"
@@ -678,6 +737,13 @@ class InProcessCyberJamSession:
                     fallback_pc=int(snapshot.get("midi_note") or 4) % 12,
                 )
 
+            # The bass sings in minor only, whatever mode the guitar implies.
+            mode = "minor"
+
+            # Manual tempo scaling for ambiguous (half/double) detections.
+            if BPM_FACTOR != 1.0:
+                bpm = max(30.0, min(240.0, bpm * BPM_FACTOR))
+
             step_dur = 60.0 / bpm / 4.0
 
             # Record guitar onsets as "taps" for GrooVAE (2 bars = 32 steps).
@@ -747,7 +813,8 @@ class InProcessCyberJamSession:
                         }
                     )
                 logger.info(
-                    "New bar -> %s (%s)",
+                    "New bar @ %.1f BPM -> %s (%s)",
+                    bpm,
                     self._generator.describe(ctx),
                     "RNN" if used_rnn else "fallback",
                 )
@@ -899,6 +966,7 @@ class InProcessCyberJamSession:
 
         self._synth_stop.clear()
         self._play_test_tone()
+        threading.Thread(target=self._passthrough_loop, name="Passthrough", daemon=True).start()
         self._synth_thread = threading.Thread(target=self._synth_audio_loop, daemon=True)
         self._synth_thread.start()
         threading.Thread(target=self._status_loop, daemon=True).start()
@@ -967,6 +1035,12 @@ def _parse_args() -> "argparse.Namespace":
     parser.add_argument("--no-rnn", action="store_true", help="Disable the RNN worker entirely.")
     parser.add_argument("--lead", action="store_true", help="Enable the generated lead line.")
     parser.add_argument("--creativity", type=float, default=None, help="Fallback engine creativity 0..1.")
+    parser.add_argument(
+        "--bpm-factor",
+        type=float,
+        default=BPM_FACTOR,
+        help="Scale the detected tempo (0.5 = half-time for slow ballads, 2.0 = double).",
+    )
     parser.add_argument(
         "--demo",
         action="store_true",
@@ -1043,7 +1117,7 @@ def _list_drum_kits(soundfont: str) -> None:
 def main() -> None:
     global RNN_SET, RNN_MODELS_DIR, RNN_ENABLED, LEAD_ENABLED, CREATIVITY, DEMO_MODE, DEMO_BARS
     global SOUNDFONT_PATH, DRUM_SOUNDFONT, DRUM_KIT, DRUM_PRESET
-    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH
+    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH, BPM_FACTOR
 
     args = _parse_args()
 
@@ -1059,6 +1133,8 @@ def main() -> None:
         LEAD_ENABLED = True
     if args.creativity is not None:
         CREATIVITY = max(0.0, min(1.0, args.creativity))
+    if args.bpm_factor and args.bpm_factor > 0:
+        BPM_FACTOR = max(0.25, min(4.0, args.bpm_factor))
     if args.demo:
         DEMO_MODE = True
     DEMO_BARS = max(1, args.demo_bars)

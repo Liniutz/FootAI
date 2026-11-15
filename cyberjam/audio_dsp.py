@@ -120,6 +120,8 @@ class AudioDSPEngine:
         self._use_aubio = aubio is not None
         self._pitch_history: deque[float] = deque(maxlen=5)
         self._pc_history: deque[int] = deque(maxlen=64)
+        self._last_locked_bpm: float | None = None
+
         if self._use_aubio:
             self._onset = aubio.onset("default", win, hop, config.sample_rate)
             self._onset.set_threshold(config.onset_threshold)
@@ -164,6 +166,7 @@ class AudioDSPEngine:
         self._onset_count: int = 0
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
+        self._feed_buf = np.zeros(0, dtype=np.float32)
         self._hann = np.hanning(hop).astype(np.float32)
         self._freqs = np.fft.rfftfreq(hop, d=1.0 / config.sample_rate)
         self._pick_band_mask = (self._freqs >= 80.0) & (self._freqs <= 5000.0)  # guitar fundamentals + pick attack
@@ -219,18 +222,30 @@ class AudioDSPEngine:
     def feed_audio(self, samples: np.ndarray) -> None:
         """Feed an externally captured mono float32 block into the DSP pipeline.
 
-        Mirrors the real-time callback: broadcasts the raw PCM over UDP and enqueues
-        the block for the DSP worker. Safe to call from an audio callback thread.
+        The capture stream may use a different block size than the DSP (PipeWire
+        devices are forced to >=256 frames), so blocks are re-chunked to the DSP
+        hop size before they reach aubio.
         """
         mono = np.ascontiguousarray(samples, dtype=np.float32)
         if mono.ndim > 1:
             mono = np.ascontiguousarray(mono[:, 0], dtype=np.float32)
 
+        hop = self.config.block_size
+        if len(mono) == hop:
+            self._push_block(mono)
+            return
+
+        self._feed_buf = np.concatenate((self._feed_buf, mono))
+        while len(self._feed_buf) >= hop:
+            self._push_block(self._feed_buf[:hop])
+            self._feed_buf = self._feed_buf[hop:]
+
+    def _push_block(self, mono: np.ndarray) -> None:
+        """Push one DSP-sized block through UDP and the DSP queue."""
         try:
             self._udp_sock.sendto(mono.tobytes(), self._udp_addr)
         except OSError:
             pass
-
         try:
             self._audio_queue.put_nowait(mono.copy())
         except queue.Full:
@@ -309,28 +324,31 @@ class AudioDSPEngine:
                     self._total_beats = 0.0
                     self._last_beat_tick_wall = now
 
-                # Onset flag + aubio native tempo or guitar tempo tracker
+                # Onsets from aubio when available, tempo always from the
+                # guitar-optimised tracker: aubio's tempo locks onto the double
+                # tempo on slow riffs (e.g. Nothing Else Matters at ~69 BPM).
                 if self._use_aubio:
                     is_onset = bool(self._onset(samples))
-                    if is_onset:
-                        self._last_onset_wall = now
-                        self._onset_count += 1
+
+                flux_onset, tracker_bpm = self._flux_onset_and_bpm(mag, rms, now)
+                is_onset = is_onset or flux_onset
+                if is_onset:
+                    self._last_onset_wall = now
+                    self._onset_count += 1
+
+                if tracker_bpm is not None:
+                    bpm = tracker_bpm
+                    self._last_locked_bpm = bpm
+                elif self._smoothed_bpm is not None:
+                    bpm = self._smoothed_bpm
+                    self._last_locked_bpm = bpm
+                elif self._use_aubio:
+                    # Cold start before the tracker has enough material.
                     is_beat = bool(self._tempo(samples))
                     raw_tbpm = float(self._tempo.get_bpm())
                     if is_beat and 40.0 <= raw_tbpm <= 240.0:
-                        if self._smoothed_bpm is None:
-                            self._smoothed_bpm = raw_tbpm
-                        else:
-                            self._smoothed_bpm = 0.7 * self._smoothed_bpm + 0.3 * raw_tbpm
-                    if self._smoothed_bpm is not None:
-                        bpm = self._smoothed_bpm
-                else:
-                    flux_onset, bpm = self._flux_onset_and_bpm(mag, rms, now)
-                    is_onset = flux_onset
-                    if is_onset:
-                        self._onset_count += 1
-                    if bpm is None and self._tempo_tracker.bpm is not None:
-                        bpm = self._tempo_tracker.bpm
+                        bpm = raw_tbpm
+                        self._last_locked_bpm = bpm
 
                 # Pitch & key estimation with median smoothing to prevent octave/jitter jumps
                 detected_hz = self._estimate_pitch(samples, frame_counter)
@@ -384,7 +402,7 @@ class AudioDSPEngine:
 
             self.state.update(
                 is_playing=is_playing,
-                bpm=bpm,
+                bpm=bpm if bpm is not None else self._last_locked_bpm,
                 reset_bpm=reset_bpm,
                 bar=bar,
                 beat=beat,
@@ -404,6 +422,20 @@ class AudioDSPEngine:
             if self._xrun_count != self._xrun_logged:
                 logger.debug("Audio callback reported %d xrun/status flags so far", self._xrun_count)
                 self._xrun_logged = self._xrun_count
+
+    def reset_tempo(self) -> None:
+        """Forget the current tempo so the next playing session re-detects it."""
+        self._smoothed_bpm = None
+        self._tempo_tracker.reset()
+        self._flux_history.clear()
+        self._last_locked_bpm = None
+        self._song_started = False
+        self._total_beats = 0.0
+        try:
+            self.state.update(bpm=None, detected_bpm=False, reset_bpm=True)
+        except Exception:
+            pass
+        logger.info("Tempo memory cleared.")
 
     def _compute_spectral_centroid_from_mag(self, mag: np.ndarray | None) -> float:
         if mag is None:

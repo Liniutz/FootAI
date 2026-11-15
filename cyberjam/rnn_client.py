@@ -113,6 +113,12 @@ class RnnClient:
             logger.error("Could not start RNN worker: %s", exc)
             return False
 
+        # Let the audio thread win under load: inference must never starve it.
+        try:
+            os.setpriority(os.PRIO_PROCESS, self._proc.pid, 10)
+        except Exception:  # noqa: BLE001
+            pass
+
         self._stop.clear()
         reader = threading.Thread(target=self._read_loop, name="RnnReader", daemon=True)
         reader.start()
