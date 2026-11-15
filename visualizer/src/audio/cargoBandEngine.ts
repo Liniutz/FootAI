@@ -60,6 +60,7 @@ export class CargoBandEngine {
   private players: Partial<Record<CargoStem, GrainPlayerLike>> = {};
   private songMap: CargoSongMap | null = null;
   private socket: WebSocket | null = null;
+  private analyser: { getValue(): Float32Array | Float32Array[] | number; dispose(): void } | null = null;
   private generation = 0;
 
   constructor(options: CargoBandOptions = {}, transport?: CargoTransport) {
@@ -188,6 +189,34 @@ export class CargoBandEngine {
     transport.start();
   }
 
+  /** Operator-facing diagnostics: is the browser actually letting us make sound? */
+  async diagnostics(): Promise<{ context: string; transport: string; stems: number }> {
+    const Tone = await import("tone");
+    const transport = (Tone as { Transport?: { state?: string } }).Transport;
+    return {
+      context: Tone.getContext().state,
+      transport: transport?.state ?? "missing",
+      stems: Object.keys(this.players).length,
+    };
+  }
+
+  /** RMS of the master output (0..1) — proves whether audio is really flowing. */
+  async outputLevel(): Promise<number> {
+    const Tone = await import("tone");
+    if (!this.analyser) {
+      const analyser = new Tone.Analyser("waveform", 1024);
+      Tone.getDestination().connect(analyser);
+      this.analyser = analyser;
+    }
+    const analyser = this.analyser;
+    if (!analyser) return 0;
+    const value = analyser.getValue();
+    if (!(value instanceof Float32Array)) return 0;
+    let sum = 0;
+    for (let i = 0; i < value.length; i += 1) sum += value[i] * value[i];
+    return Math.sqrt(sum / value.length);
+  }
+
   stop(): void {
     this.ensureTransport()
       .then((transport) => transport.stop())
@@ -204,6 +233,10 @@ export class CargoBandEngine {
   dispose(): void {
     this.generation += 1;
     this.stop();
+    if (this.analyser) {
+      try { this.analyser.dispose(); } catch { /* ignore teardown errors */ }
+      this.analyser = null;
+    }
     if (this.socket) {
       this.socket.onopen = null;
       this.socket.onmessage = null;
