@@ -90,13 +90,14 @@ def simplify_drums(events: list[dict], bars: int) -> list[dict]:
 
         simplified.append({"bar": bar, "step": 0, "note": KICK, "velocity": 112})
         simplified.append({"bar": bar, "step": 8, "note": KICK, "velocity": 102})
-        simplified.append({"bar": bar, "step": 4, "note": SNARE, "velocity": 106})
-        simplified.append({"bar": bar, "step": 12, "note": SNARE, "velocity": 112})
+        # Snare on every quarter note (4/4 march feel), downbeat accented.
+        for step, velocity in ((0, 116), (4, 104), (8, 110), (12, 112)):
+            simplified.append({"bar": bar, "step": step, "note": SNARE, "velocity": velocity})
         if bar == 0:
             simplified.append({"bar": bar, "step": 0, "note": CRASH, "velocity": 92})
 
     simplified.sort(key=lambda e: (e["bar"], e["step"], e["note"]))
-    return simplified
+    return _dedupe(simplified)
 
 
 KICK_PATTERNS: tuple[tuple[int, ...], ...] = (
@@ -106,6 +107,17 @@ KICK_PATTERNS: tuple[tuple[int, ...], ...] = (
     (0, 8, 14),   # late pickup into the next bar
     (0, 6, 11),   # syncopated
 )
+
+
+def _dedupe(events: list[dict]) -> list[dict]:
+    """Collapse duplicate (bar, step, note) hits, keeping the loudest."""
+    best: dict[tuple[int, int, int], dict] = {}
+    for event in events:
+        key = (int(event["bar"]), int(event["step"]), int(event["note"]))
+        current = best.get(key)
+        if current is None or int(event["velocity"]) > int(current["velocity"]):
+            best[key] = event
+    return sorted(best.values(), key=lambda e: (e["bar"], e["step"], e["note"]))
 
 
 def cargo_drums(
@@ -182,19 +194,12 @@ def cargo_drums(
                 {"bar": bar, "step": step, "note": KICK, "velocity": 114 if step == 0 else 100}
             )
 
-        # Hard backbeat.
-        shaped.append({"bar": bar, "step": 4, "note": SNARE, "velocity": 108})
-        shaped.append({"bar": bar, "step": 12, "note": SNARE, "velocity": 116})
+        # Snare on every quarter note in 4/4, downbeat accented.
+        for step, velocity in ((0, 116), (4, 104), (8, 110), (12, 112)):
+            shaped.append({"bar": bar, "step": step, "note": SNARE, "velocity": velocity})
 
-        # Ghost notes before the backbeat (a Cargo signature).
-        ghosts = {7 if 7 in snares else 15} if (7 in snares or 15 in snares) else set()
-        for _ in range(int(round(creativity * 2))):
-            if rng.random() < creativity * 0.55:
-                ghosts.add(rng.choice((3, 7, 11, 15)))
-        for step in sorted(ghosts):
-            if fill and step >= 12:
-                continue
-            shaped.append({"bar": bar, "step": step, "note": SNARE, "velocity": 34})
+        # The snare stays strictly on the quarter notes; no ghost snares.
+        _ = snares  # model snare hits are intentionally ignored
 
         # Crash on the phrase downbeat; extra crash when feeling it.
         if bar % 4 == 0:
@@ -221,7 +226,7 @@ def cargo_drums(
                 )
 
     shaped.sort(key=lambda e: (e["bar"], e["step"], e["note"]))
-    return shaped
+    return _dedupe(shaped)
 
 
 def tapify(events: list[dict], bars: int) -> list[int]:

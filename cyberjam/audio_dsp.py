@@ -120,6 +120,8 @@ class AudioDSPEngine:
         self._use_aubio = aubio is not None
         self._pitch_history: deque[float] = deque(maxlen=5)
         self._pc_history: deque[int] = deque(maxlen=64)
+        self._last_locked_bpm: float | None = None
+
         if self._use_aubio:
             self._onset = aubio.onset("default", win, hop, config.sample_rate)
             self._onset.set_threshold(config.onset_threshold)
@@ -164,6 +166,7 @@ class AudioDSPEngine:
         self._onset_count: int = 0
 
         self._rolling_buf: deque[float] = deque(maxlen=win)
+        self._feed_buf = np.zeros(0, dtype=np.float32)
         self._hann = np.hanning(hop).astype(np.float32)
         self._freqs = np.fft.rfftfreq(hop, d=1.0 / config.sample_rate)
         self._pick_band_mask = (self._freqs >= 80.0) & (self._freqs <= 5000.0)  # guitar fundamentals + pick attack
@@ -219,18 +222,30 @@ class AudioDSPEngine:
     def feed_audio(self, samples: np.ndarray) -> None:
         """Feed an externally captured mono float32 block into the DSP pipeline.
 
-        Mirrors the real-time callback: broadcasts the raw PCM over UDP and enqueues
-        the block for the DSP worker. Safe to call from an audio callback thread.
+        The capture stream may use a different block size than the DSP (PipeWire
+        devices are forced to >=256 frames), so blocks are re-chunked to the DSP
+        hop size before they reach aubio.
         """
         mono = np.ascontiguousarray(samples, dtype=np.float32)
         if mono.ndim > 1:
             mono = np.ascontiguousarray(mono[:, 0], dtype=np.float32)
 
+        hop = self.config.block_size
+        if len(mono) == hop:
+            self._push_block(mono)
+            return
+
+        self._feed_buf = np.concatenate((self._feed_buf, mono))
+        while len(self._feed_buf) >= hop:
+            self._push_block(self._feed_buf[:hop])
+            self._feed_buf = self._feed_buf[hop:]
+
+    def _push_block(self, mono: np.ndarray) -> None:
+        """Push one DSP-sized block through UDP and the DSP queue."""
         try:
             self._udp_sock.sendto(mono.tobytes(), self._udp_addr)
         except OSError:
             pass
-
         try:
             self._audio_queue.put_nowait(mono.copy())
         except queue.Full:
@@ -323,14 +338,17 @@ class AudioDSPEngine:
 
                 if tracker_bpm is not None:
                     bpm = tracker_bpm
+                    self._last_locked_bpm = bpm
                 elif self._smoothed_bpm is not None:
                     bpm = self._smoothed_bpm
+                    self._last_locked_bpm = bpm
                 elif self._use_aubio:
                     # Cold start before the tracker has enough material.
                     is_beat = bool(self._tempo(samples))
                     raw_tbpm = float(self._tempo.get_bpm())
                     if is_beat and 40.0 <= raw_tbpm <= 240.0:
                         bpm = raw_tbpm
+                        self._last_locked_bpm = bpm
 
                 # Pitch & key estimation with median smoothing to prevent octave/jitter jumps
                 detected_hz = self._estimate_pitch(samples, frame_counter)
@@ -384,7 +402,7 @@ class AudioDSPEngine:
 
             self.state.update(
                 is_playing=is_playing,
-                bpm=bpm,
+                bpm=bpm if bpm is not None else self._last_locked_bpm,
                 reset_bpm=reset_bpm,
                 bar=bar,
                 beat=beat,
@@ -410,6 +428,7 @@ class AudioDSPEngine:
         self._smoothed_bpm = None
         self._tempo_tracker.reset()
         self._flux_history.clear()
+        self._last_locked_bpm = None
         self._song_started = False
         self._total_beats = 0.0
         try:
