@@ -18,6 +18,13 @@ export function routeUrl(route: Route): string {
   return `${origin}${pathname}${routeHref(route)}`;
 }
 
+/** Absolute URL for the standalone source/experience page on the second monitor. */
+export function cargoAudioUrl(): string {
+  if (typeof window === "undefined") return "/visualizer.html";
+  const { origin, pathname } = window.location;
+  return `${origin}${pathname}#/cargo-audio`;
+}
+
 /**
  * Open both operator displays as separate windows. The calling window becomes
  * the Menu/monitor and only the TV Visualizer is opened as a popup. Keeping one

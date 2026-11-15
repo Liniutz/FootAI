@@ -1,0 +1,56 @@
+.cargo-audio-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 4vh 5vw;
+  text-align: center;
+  background: #080808;
+  color: #fff;
+}
+
+.cargo-audio-screen__eyebrow {
+  color: #b7b7b7;
+  font-size: 0.9rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.cargo-audio-screen h1 {
+  margin: 0;
+  font: 700 clamp(2.5rem, 7vw, 7rem) var(--font-heading);
+}
+
+.cargo-audio-screen__performance {
+  min-height: 11rem;
+}
+
+.cargo-audio-screen__chord {
+  margin: 0;
+  font: 700 clamp(3rem, 10vw, 9rem) var(--font-heading);
+}
+
+.cargo-audio-screen__chord span {
+  color: #909090;
+}
+
+.cargo-audio-screen__match,
+.cargo-audio-screen__live {
+  color: #b7ffc9;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.cargo-audio-screen__start {
+  padding: 1rem 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #050505;
+  font: 700 1rem var(--font-heading);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}

@@ -36,11 +36,44 @@ const fret = (f: number, finger?: 1 | 2 | 3 | 4): ChordStringState => ({
   finger,
 });
 
+const PC_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
+
+/**
+ * Build a rock power chord (root + fifth) for a pitch class, 0 = C, in
+ * standard tuning. The root sits on the low-E string when that keeps the
+ * hand low on the neck; otherwise it moves to the A string. Open shapes are
+ * used for E5 and A5.
+ */
+export function powerChordShape(pitchClass: number): ChordShape {
+  const pc = ((pitchClass % 12) + 12) % 12;
+  const name = `${PC_NAMES[pc]}5`;
+  const fretOnLowE = (pc - 4 + 12) % 12;
+  if (fretOnLowE === 0) {
+    // E5: open low E + B and E at fret 2.
+    return { name, strings: [O, fret(2, 2), fret(2, 3), X, X, X] };
+  }
+  const fretOnA = (pc - 9 + 12) % 12;
+  if (fretOnLowE <= fretOnA) {
+    return {
+      name,
+      strings: [fret(fretOnLowE, 1), fret(fretOnLowE + 2, 3), fret(fretOnLowE + 2, 4), X, X, X],
+    };
+  }
+  if (fretOnA === 0) {
+    // A5: open A + D and G at fret 2.
+    return { name, strings: [X, O, fret(2, 3), fret(2, 4), X, X] };
+  }
+  return {
+    name,
+    strings: [X, fret(fretOnA, 1), fret(fretOnA + 2, 3), fret(fretOnA + 2, 4), X, X],
+  };
+}
+
 /**
  * A small library of common open-position chords (low-E first).
  * These are standard beginner shapes.
  */
-export const CHORD_LIBRARY: Record<string, ChordShape> = {
+const OPEN_CHORDS: Record<string, ChordShape> = {
   Em: { name: "Em", strings: [O, fret(2, 2), fret(2, 3), O, O, O] },
   G: { name: "G", strings: [fret(3, 2), fret(2, 1), O, O, O, fret(3, 3)] },
   C: { name: "C", strings: [X, fret(3, 3), fret(2, 2), O, fret(1, 1), O] },
@@ -50,9 +83,23 @@ export const CHORD_LIBRARY: Record<string, ChordShape> = {
   E: { name: "E", strings: [O, fret(2, 2), fret(2, 3), fret(1, 1), O, O] },
 };
 
+export const CHORD_LIBRARY: Record<string, ChordShape> = {
+  ...OPEN_CHORDS,
+  // Every rock power chord, "C5" … "B5", used by the Cargo stem songs.
+  ...Object.fromEntries(PC_NAMES.map((_, pc) => {
+    const shape = powerChordShape(pc);
+    return [shape.name, shape] as const;
+  })),
+};
+
 /** Look up a chord shape by name, or `undefined` if unknown. */
 export function getChord(name: string): ChordShape | undefined {
   return CHORD_LIBRARY[name];
+}
+
+/** Resolve a chord shape by name, falling back to a muted placeholder. */
+export function chordShapeFor(name: string): ChordShape {
+  return getChord(name) ?? { name, strings: Array(STRING_COUNT).fill(X) };
 }
 
 /**
@@ -60,8 +107,12 @@ export function getChord(name: string): ChordShape | undefined {
  * id. The progression loops: bar N shows `progression[N % length]`.
  */
 export const SONG_PROGRESSIONS: Record<string, readonly string[]> = {
-  // Cargo (key E) — a driving minor loop.
-  "cargo-song": ["Em", "C", "G", "D"],
+  // Ziua Vrăjitoarelor (Cargo stem song, key E) — E5-heavy riffing loop.
+  "cargo-song": ["E5", "E5", "B5", "A5"],
+  // Andri Popa (Cargo stem song) — A-major driven riff loop.
+  "cargo-andri-popa": ["A5", "D5", "G5", "A5"],
+  // Nu Mai Am Țigări (Cargo stem song) — slow A/E rock ballad loop.
+  "cargo-nu-mai-am-tigari": ["A5", "E5", "B5", "G5"],
   // Free Jam (key E) — simple I–IV–V-ish open chords.
   "free-jam": ["E", "A", "D", "A"],
 };

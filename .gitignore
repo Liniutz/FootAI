@@ -8,6 +8,8 @@ venv/
 *.egg-info/
 dist/
 build/
+*.wav
+*.mp3
 
 # Logs & OS
 *.log

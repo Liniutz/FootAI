@@ -9,15 +9,16 @@
  * Controller model (see `useGamepad`): D-pad navigates songs, difficulty, and
  * launch; A confirms the focused item and Start launches directly.
  */
-import { useEffect, useMemo, useState } from "react";
-import { SONGS, isFreestyleSong } from "../data/catalog";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { SONGS, getSongById, isFreestyleSong } from "../data/catalog";
 import { BeginnerCoach } from "../visualizer/BeginnerCoach";
 import { useVisualizerStore } from "../store";
 import { loadSelection, saveSelection } from "../menu/persistence";
 import { useGamepad } from "../menu/useGamepad";
 import type { DifficultyMode } from "../types";
 import { startEngineSession, stopEngineSession } from "../sessionControl";
-import { routeUrl } from "../windows";
+import { cargoAudioUrl, routeUrl } from "../windows";
+import { CargoBandEngine, type CargoVisualState } from "../audio/cargoBandEngine";
 
 /** The selectable difficulty modes (shown once a real song is picked). */
 const MODES: ReadonlyArray<{
@@ -61,6 +62,11 @@ export function MenuView() {
   const [stopping, setStopping] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [stopMessage, setStopMessage] = useState<string | null>(null);
+  const [cargoLoading, setCargoLoading] = useState(false);
+  const [cargoError, setCargoError] = useState<string | null>(null);
+  const [cargoVisual, setCargoVisual] = useState<CargoVisualState | null>(null);
+  const selectedSong = getSongById(selection.songId ?? "");
+  const cargoEngineRef = useRef<CargoBandEngine | null>(null);
 
   // Show difficulty choices for regular songs; never briefly unmount them while
   // the persisted selection is being restored from localStorage.
@@ -90,6 +96,15 @@ export function MenuView() {
     setRehydrated(true);
   }, [setSelection, storedSelection]);
 
+  useEffect(() => {
+    const engine = new CargoBandEngine({ onVisualUpdate: setCargoVisual });
+    cargoEngineRef.current = engine;
+    return () => {
+      engine.dispose();
+      cargoEngineRef.current = null;
+    };
+  }, []);
+
   // Persist on every selection change after storage has been loaded.
   useEffect(() => {
     if (rehydrated) saveSelection(selection);
@@ -105,15 +120,31 @@ export function MenuView() {
     setStopMessage(null);
     const result = await startEngineSession(isFreestyleSong(selection.songId) ? "freestyle" : "song");
     setStarting(false);
-    if (!result.running) {
-      setStartError(result.error ?? "Could not start the CyberJam engine.");
+    if (result.running) {
+      setStopMessage("Session live on TV.");
+    }
+    // Stem songs play their real multitrack audio on START regardless of the
+    // engine session; the generated band is a fallback, not a gate.
+    if (selectedSong?.cargoStemSlug) {
+      setCargoLoading(true);
+      setCargoError(null);
+      try {
+        const engine = cargoEngineRef.current;
+        if (!engine) throw new Error("Cargo audio engine is not ready.");
+        await engine.loadSong(selectedSong.cargoStemSlug);
+        engine.connectToGuitarEngine();
+        engine.play();
+        setStopMessage("Session and Cargo stems live on TV.");
+      } catch (error) {
+        setCargoError(error instanceof Error ? error.message : "Cargo stems could not be loaded.");
+      } finally {
+        setCargoLoading(false);
+      }
       return;
     }
-    setStopMessage("Session live on TV.");
-  };
-
-  const openTvScreen = () => {
-    window.open?.(routeUrl("visualizer"), "cyberjam-visualizer");
+    if (!result.running) {
+      setStartError(result.error ?? "Could not start the CyberJam engine.");
+    }
   };
 
   const stopSession = async () => {
@@ -121,6 +152,8 @@ export function MenuView() {
     setStopping(true);
     setStopMessage(null);
     const result = await stopEngineSession();
+    cargoEngineRef.current?.stop();
+    setCargoVisual(null);
     setStopping(false);
     setStopMessage(
       result.error ?? (result.running ? "Session could not be stopped." : "CyberJam session stopped."),
@@ -153,7 +186,6 @@ export function MenuView() {
     onStart: startVisualizer,
     onConnectionChange: setPadConnected,
   });
-
 
   return (
     <section aria-label="Menu" className="view view--menu rocksmith">
@@ -212,6 +244,7 @@ export function MenuView() {
                       ? "Jam freely · live tempo and key"
                       : `${song.referenceBpm} BPM · Key ${song.referenceKey}`}
                   </span>
+                  {song.cargoStemSlug && <span className="rs-card__meta">Cargo multitrack stems</span>}
                   {selected && <span className="rs-card__badge">Selected</span>}
                 </button>
               );
@@ -258,6 +291,15 @@ export function MenuView() {
 
       </div>
 
+      {cargoLoading && <p className="rs-hint">Loading Cargo stems…</p>}
+      {cargoError && <p className="rs-hint" role="alert">Cargo audio unavailable: {cargoError}</p>}
+      {cargoVisual && (
+        <p className="rs-hint" aria-live="polite">
+          Chord {cargoVisual.currentChord} → {cargoVisual.nextChord}
+          {cargoVisual.chordMatch ? " · Nice match!" : ""}
+        </p>
+      )}
+
       <div className="menu-actions-secondary">
         <button
           type="button"
@@ -270,7 +312,7 @@ export function MenuView() {
         <button
           type="button"
           className="menu-open-tv"
-          onClick={openTvScreen}
+          onClick={() => window.open?.(selectedSong?.cargoStemSlug ? cargoAudioUrl() : routeUrl("visualizer"), "cyberjam-visualizer")}
         >
           Open TV
         </button>

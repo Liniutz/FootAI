@@ -19,6 +19,7 @@ import { VisualizerView } from "./views/VisualizerView";
 import { isMockEnabled, startMockFeed } from "./dev/mockFeed";
 import { loadSelection } from "./menu/persistence";
 import { useVisualizerStore } from "./store";
+import { CargoAudioView } from "./views/CargoAudioView";
 import "./App.css";
 
 function Launcher() {
@@ -103,6 +104,7 @@ export function App() {
       <main className="app__main">
         {route === "menu" && <MenuView />}
         {route === "visualizer" && <VisualizerView />}
+        {route === "cargo-audio" && <CargoAudioView />}
         {route === "home" && <Launcher />}
       </main>
     </div>

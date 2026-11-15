@@ -62,9 +62,24 @@ export const SONGS: readonly SongEntry[] = [
   },
   {
     id: "cargo-song",
-    title: "Cargo",
-    referenceBpm: 128,
+    title: "Ziua Vrăjitoarelor",
+    referenceBpm: 144,
     referenceKey: "E",
+    cargoStemSlug: "ziua_vrajitoarelor",
+  },
+  {
+    id: "cargo-nu-mai-am-tigari",
+    title: "Nu Mai Am Țigări",
+    referenceBpm: 70,
+    referenceKey: "E",
+    cargoStemSlug: "nu mai am tigari",
+  },
+  {
+    id: "cargo-andri-popa",
+    title: "Andri Popa",
+    referenceBpm: 172,
+    referenceKey: "E",
+    cargoStemSlug: "andri popa",
   },
   {
     id: "free-jam",

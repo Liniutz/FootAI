@@ -576,9 +576,16 @@ view). Added after the per-song difficulty-mode menu step.
 - **Chord diagrams** (`src/visualizer/ChordDiagram.tsx`): a clean SVG fretboard for the current
   bar's chord — six strings (low-E first), fret wires, a thick nut, open/muted `O`/`X` markers above
   the nut, and numbered finger dots — plus a dimmed **preview of the next chord** so the player can
-  prepare. Chord shapes + per-song progressions live in `src/visualizer/chords.ts`
-  (`cargo-song` → Em–C–G–D, `free-jam` → E–A–D–A, default fallback otherwise; the progression loops
-  per bar).
+  prepare. Shapes above the default 4-fret window scroll the neck and label the base fret
+  (`data-testid="base-fret"`, e.g. `5fr`). Chord shapes + per-song progressions live in
+  `src/visualizer/chords.ts` (open chords plus every rock **power chord** `C5`…`B5` via
+  `powerChordShape`; `free-jam` → E–A–D–A, default fallback otherwise; the progression loops per
+  bar).
+- **Real stem-song chords** (`src/visualizer/songMapChords.ts`): for Cargo stem songs the coach
+  fetches `/<slug>/song_map.json` and samples the map's chord segments at each bar boundary
+  (`bar = 240 / base_bpm`; a chord starting exactly on a boundary belongs to the new bar), so the
+  tutorial shows the song's actual progression (Ziua Vrăjitoarelor → `E5`/`B5`/`A5`…) instead of a
+  hardcoded loop. Falls back to the static table in `chords.ts` while loading or on failure.
 - **Approach circle** (`src/visualizer/BeginnerCoach.tsx`): a static target ring with a shrinking
   outer ring that contracts in time with the song's **reference BPM in 4/4** and converges exactly
   on **Beat 1** of each bar. Driven by a local beat clock (`src/visualizer/beatClock.ts`) off a

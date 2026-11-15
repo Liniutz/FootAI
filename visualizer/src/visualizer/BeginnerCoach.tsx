@@ -21,7 +21,8 @@ import { getSongById } from "../data/catalog";
 import { RenderLoop } from "./renderLoop";
 import { OnsetTracker } from "./noteVisuals";
 import { ChordDiagram } from "./ChordDiagram";
-import { chordForBar } from "./chords";
+import { chordForBar, chordShapeFor } from "./chords";
+import { fetchStemProgression } from "./songMapChords";
 import {
   approachRadiusFraction,
   barPhase,
@@ -42,6 +43,29 @@ export function BeginnerCoach() {
 
   const [barIndex, setBarIndex] = useState(0);
   const [verdict, setVerdict] = useState<HitVerdict | null>(null);
+  // Real bar-by-bar chords for Cargo stem songs; falls back to the static
+  // progression table while loading or when the map is unavailable.
+  const [stemProgression, setStemProgression] = useState<readonly string[] | null>(null);
+  const stemSlug = songId ? getSongById(songId)?.cargoStemSlug : undefined;
+
+  useEffect(() => {
+    if (!stemSlug) {
+      setStemProgression(null);
+      return;
+    }
+    let cancelled = false;
+    setStemProgression(null);
+    fetchStemProgression(stemSlug)
+      .then((progression) => {
+        if (!cancelled && progression.length > 0) setStemProgression(progression);
+      })
+      .catch(() => {
+        // Optional enrichment: the static progression keeps the coach usable.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [stemSlug]);
 
   const approachRef = useRef<SVGCircleElement | null>(null);
   const targetRef = useRef<SVGCircleElement | null>(null);
@@ -101,8 +125,15 @@ export function BeginnerCoach() {
     [],
   );
 
-  const currentChord = chordForBar(songId, barIndex);
-  const nextChord = chordForBar(songId, barIndex + 1);
+  const barName = (index: number): string => {
+    if (stemProgression && stemProgression.length > 0) {
+      const safe = ((index % stemProgression.length) + stemProgression.length) % stemProgression.length;
+      return stemProgression[safe];
+    }
+    return chordForBar(songId, index).name;
+  };
+  const currentChord = chordShapeFor(barName(barIndex));
+  const nextChord = chordShapeFor(barName(barIndex + 1));
 
   const viewSize = START_R * 2 + 8;
   const center = viewSize / 2;

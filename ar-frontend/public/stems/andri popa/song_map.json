@@ -1,0 +1,3159 @@
+{
+  "id": "andri popa",
+  "base_bpm": 172.27,
+  "beats": [
+    5.944,
+    6.293,
+    6.641,
+    6.966,
+    7.291,
+    7.616,
+    7.964,
+    8.29,
+    8.615,
+    8.94,
+    9.265,
+    9.59,
+    9.915,
+    10.24,
+    10.565,
+    10.89,
+    11.238,
+    11.564,
+    11.912,
+    12.237,
+    12.585,
+    12.91,
+    13.259,
+    13.584,
+    13.932,
+    14.257,
+    14.582,
+    14.907,
+    15.232,
+    15.557,
+    15.882,
+    16.208,
+    16.533,
+    16.881,
+    17.229,
+    17.554,
+    17.903,
+    18.228,
+    18.553,
+    18.878,
+    19.203,
+    19.528,
+    19.853,
+    20.155,
+    20.48,
+    20.805,
+    21.13,
+    21.455,
+    21.78,
+    22.105,
+    22.43,
+    22.756,
+    23.081,
+    23.406,
+    23.731,
+    24.056,
+    24.427,
+    24.752,
+    25.101,
+    25.426,
+    25.774,
+    26.122,
+    26.471,
+    26.796,
+    27.144,
+    27.492,
+    27.841,
+    28.166,
+    28.514,
+    28.839,
+    29.187,
+    29.513,
+    29.861,
+    30.209,
+    30.557,
+    30.883,
+    31.208,
+    31.556,
+    31.904,
+    32.253,
+    32.601,
+    32.926,
+    33.251,
+    33.576,
+    33.924,
+    34.249,
+    34.598,
+    34.923,
+    35.294,
+    35.619,
+    35.968,
+    36.293,
+    36.641,
+    36.989,
+    37.314,
+    37.64,
+    37.988,
+    38.313,
+    38.661,
+    38.986,
+    39.335,
+    39.66,
+    40.008,
+    40.356,
+    40.705,
+    41.053,
+    41.401,
+    41.726,
+    42.075,
+    42.4,
+    42.748,
+    43.073,
+    43.421,
+    43.77,
+    44.095,
+    44.443,
+    44.791,
+    45.116,
+    45.465,
+    45.813,
+    46.138,
+    46.463,
+    46.858,
+    47.16,
+    47.508,
+    47.833,
+    48.181,
+    48.53,
+    48.878,
+    49.226,
+    49.598,
+    49.9,
+    50.248,
+    50.596,
+    50.945,
+    51.27,
+    51.618,
+    51.966,
+    52.338,
+    52.663,
+    52.988,
+    53.313,
+    53.661,
+    54.01,
+    54.358,
+    54.729,
+    55.078,
+    55.403,
+    55.751,
+    56.099,
+    56.448,
+    56.796,
+    57.144,
+    57.493,
+    57.818,
+    58.143,
+    58.491,
+    58.839,
+    59.164,
+    59.513,
+    59.884,
+    60.233,
+    60.581,
+    60.906,
+    61.254,
+    61.579,
+    61.928,
+    62.276,
+    62.601,
+    62.949,
+    63.321,
+    63.669,
+    64.017,
+    64.342,
+    64.691,
+    65.039,
+    65.387,
+    65.736,
+    66.107,
+    66.432,
+    66.804,
+    67.129,
+    67.477,
+    67.802,
+    68.151,
+    68.499,
+    68.87,
+    69.172,
+    69.521,
+    69.869,
+    70.217,
+    70.565,
+    70.914,
+    71.239,
+    71.587,
+    71.935,
+    72.307,
+    72.655,
+    72.98,
+    73.352,
+    73.677,
+    74.002,
+    74.327,
+    74.675,
+    75.047,
+    75.372,
+    75.72,
+    76.045,
+    76.394,
+    76.719,
+    77.09,
+    77.415,
+    77.764,
+    78.112,
+    78.437,
+    78.785,
+    79.134,
+    79.482,
+    79.807,
+    80.132,
+    80.504,
+    80.852,
+    81.177,
+    81.502,
+    81.85,
+    82.199,
+    82.547,
+    82.895,
+    83.244,
+    83.592,
+    83.917,
+    84.265,
+    84.614,
+    84.939,
+    85.287,
+    85.612,
+    85.96,
+    86.285,
+    86.634,
+    86.982,
+    87.353,
+    87.679,
+    88.027,
+    88.375,
+    88.723,
+    89.072,
+    89.42,
+    89.768,
+    90.117,
+    90.442,
+    90.813,
+    91.138,
+    91.487,
+    91.835,
+    92.206,
+    92.555,
+    92.903,
+    93.228,
+    93.553,
+    93.901,
+    94.25,
+    94.598,
+    94.946,
+    95.295,
+    95.643,
+    95.991,
+    96.34,
+    96.688,
+    97.036,
+    97.384,
+    97.71,
+    98.035,
+    98.406,
+    98.754,
+    99.08,
+    99.428,
+    99.776,
+    100.124,
+    100.45,
+    100.798,
+    101.146,
+    101.471,
+    101.82,
+    102.168,
+    102.516,
+    102.864,
+    103.213,
+    103.584,
+    103.933,
+    104.258,
+    104.583,
+    104.908,
+    105.256,
+    105.604,
+    105.976,
+    106.301,
+    106.626,
+    106.974,
+    107.323,
+    107.671,
+    108.019,
+    108.344,
+    108.693,
+    109.041,
+    109.389,
+    109.714,
+    110.063,
+    110.388,
+    110.736,
+    111.061,
+    111.456,
+    111.781,
+    112.129,
+    112.454,
+    112.826,
+    113.174,
+    113.522,
+    113.847,
+    114.173,
+    114.521,
+    114.869,
+    115.194,
+    115.542,
+    115.891,
+    116.239,
+    116.587,
+    116.936,
+    117.261,
+    117.586,
+    117.934,
+    118.282,
+    118.631,
+    118.979,
+    119.327,
+    119.699,
+    120.024,
+    120.372,
+    120.697,
+    121.046,
+    121.394,
+    121.742,
+    122.091,
+    122.462,
+    122.787,
+    123.135,
+    123.484,
+    123.855,
+    124.204,
+    124.552,
+    124.9,
+    125.225,
+    125.55,
+    125.899,
+    126.247,
+    126.618,
+    126.92,
+    127.269,
+    127.617,
+    127.965,
+    128.313,
+    128.685,
+    129.033,
+    129.382,
+    129.73,
+    130.078,
+    130.426,
+    130.798,
+    131.146,
+    131.495,
+    131.82,
+    132.168,
+    132.516,
+    132.865,
+    133.213,
+    133.561,
+    133.909,
+    134.258,
+    134.606,
+    134.931,
+    135.279,
+    135.628,
+    135.953,
+    136.301,
+    136.649,
+    136.998,
+    137.346,
+    137.694,
+    138.019,
+    138.368,
+    138.716,
+    139.064,
+    139.413,
+    139.761,
+    140.109,
+    140.458,
+    140.806,
+    141.154,
+    141.479,
+    141.827,
+    142.176,
+    142.501,
+    142.849,
+    143.174,
+    143.523,
+    143.871,
+    144.219,
+    144.567,
+    144.916,
+    145.264,
+    145.589,
+    145.914,
+    146.262,
+    146.611,
+    146.959,
+    147.284,
+    147.632,
+    147.981,
+    148.329,
+    148.677,
+    149.026,
+    149.351,
+    149.676,
+    150.024,
+    150.372,
+    150.698,
+    151.046,
+    151.394,
+    151.742,
+    152.091,
+    152.439,
+    152.787,
+    153.112,
+    153.437,
+    153.786,
+    154.134,
+    154.459,
+    154.807,
+    155.156,
+    155.504,
+    155.852,
+    156.201,
+    156.526,
+    156.874,
+    157.199,
+    157.547,
+    157.896,
+    158.244,
+    158.592,
+    158.964,
+    159.289,
+    159.614,
+    159.962,
+    160.311,
+    160.659,
+    161.03,
+    161.379,
+    161.727,
+    162.075,
+    162.424,
+    162.772,
+    163.12,
+    163.445,
+    163.794,
+    164.142,
+    164.49,
+    164.838,
+    165.164,
+    165.512,
+    165.86,
+    166.208,
+    166.534,
+    166.882,
+    167.23,
+    167.578,
+    167.927,
+    168.252,
+    168.6,
+    168.948,
+    169.32,
+    169.668,
+    170.017,
+    170.365,
+    170.713,
+    171.038,
+    171.386,
+    171.735,
+    172.083,
+    172.431,
+    172.78,
+    173.128,
+    173.476,
+    173.801,
+    174.173,
+    174.544,
+    174.893,
+    175.241,
+    175.589,
+    175.961,
+    176.309,
+    176.657,
+    177.006,
+    177.354,
+    177.702,
+    178.051,
+    178.399,
+    178.747,
+    179.119,
+    179.444,
+    179.792,
+    180.14,
+    180.489,
+    180.86,
+    181.209,
+    181.557,
+    181.905,
+    182.253,
+    182.602,
+    182.95,
+    183.298,
+    183.623,
+    183.995,
+    184.343,
+    184.715,
+    185.063,
+    185.411,
+    185.783
+  ],
+  "chords": [
+    {
+      "time": 5.944,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 6.293,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 6.641,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 6.966,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 7.291,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 7.616,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 7.964,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 8.29,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 8.615,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 8.94,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 9.265,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 9.59,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 9.915,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 10.24,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 10.565,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 10.89,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 11.238,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 11.564,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 11.912,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 12.237,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 12.585,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 12.91,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 13.259,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 13.584,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 13.932,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 14.257,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 14.582,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 14.907,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 15.232,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 15.557,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 15.882,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 16.208,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 16.533,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 16.881,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 17.229,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 17.554,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 17.903,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 18.228,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 18.553,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 18.878,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 19.203,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 19.528,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 19.853,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 20.155,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 20.48,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 20.805,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 21.13,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 21.455,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 21.78,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 22.105,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 22.43,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 22.756,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 23.081,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 23.406,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 23.731,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 24.056,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 24.427,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 24.752,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 25.101,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 25.426,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 25.774,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 26.122,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 26.471,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 26.796,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 27.144,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 27.492,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 27.841,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 28.166,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 28.514,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 28.839,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 29.187,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 29.513,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 29.861,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 30.209,
+      "chord": "F#5",
+      "pitch_class": 6
+    },
+    {
+      "time": 30.557,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 30.883,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 31.208,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 31.556,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 31.904,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 32.253,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 32.601,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 32.926,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 33.251,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 33.576,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 33.924,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 34.249,
+      "chord": "F#5",
+      "pitch_class": 6
+    },
+    {
+      "time": 34.598,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 34.923,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 35.294,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 35.619,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 35.968,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 36.293,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 36.641,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 36.989,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 37.314,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 37.64,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 37.988,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 38.313,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 38.661,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 38.986,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 39.335,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 39.66,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 40.008,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 40.356,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 40.705,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 41.053,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 41.401,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 41.726,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 42.075,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 42.4,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 42.748,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 43.073,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 43.421,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 43.77,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 44.095,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 44.443,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 44.791,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 45.116,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 45.465,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 45.813,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 46.138,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 46.463,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 46.858,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 47.16,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 47.508,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 47.833,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 48.181,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 48.53,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 48.878,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 49.226,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 49.598,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 49.9,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 50.248,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 50.596,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 50.945,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 51.27,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 51.618,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 51.966,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 52.338,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 52.663,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 52.988,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 53.313,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 53.661,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 54.01,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 54.358,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 54.729,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 55.078,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 55.403,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 55.751,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 56.099,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 56.448,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 56.796,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 57.144,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 57.493,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 57.818,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 58.143,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 58.491,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 58.839,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 59.164,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 59.513,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 59.884,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 60.233,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 60.581,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 60.906,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 61.254,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 61.579,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 61.928,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 62.276,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 62.601,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 62.949,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 63.321,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 63.669,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 64.017,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 64.342,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 64.691,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 65.039,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 65.387,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 65.736,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 66.107,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 66.432,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 66.804,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 67.129,
+      "chord": "F#5",
+      "pitch_class": 6
+    },
+    {
+      "time": 67.477,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 67.802,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 68.151,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 68.499,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 68.87,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 69.172,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 69.521,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 69.869,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 70.217,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 70.565,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 70.914,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 71.239,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 71.587,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 71.935,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 72.307,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 72.655,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 72.98,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 73.352,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 73.677,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 74.002,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 74.327,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 74.675,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 75.047,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 75.372,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 75.72,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 76.045,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 76.394,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 76.719,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 77.09,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 77.415,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 77.764,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 78.112,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 78.437,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 78.785,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 79.134,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 79.482,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 79.807,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 80.132,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 80.504,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 80.852,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 81.177,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 81.502,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 81.85,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 82.199,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 82.547,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 82.895,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 83.244,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 83.592,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 83.917,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 84.265,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 84.614,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 84.939,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 85.287,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 85.612,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 85.96,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 86.285,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 86.634,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 86.982,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 87.353,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 87.679,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 88.027,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 88.375,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 88.723,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 89.072,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 89.42,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 89.768,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 90.117,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 90.442,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 90.813,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 91.138,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 91.487,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 91.835,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 92.206,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 92.555,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 92.903,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 93.228,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 93.553,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 93.901,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 94.25,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 94.598,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 94.946,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 95.295,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 95.643,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 95.991,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 96.34,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 96.688,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 97.036,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 97.384,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 97.71,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 98.035,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 98.406,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 98.754,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 99.08,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 99.428,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 99.776,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 100.124,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 100.45,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 100.798,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 101.146,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 101.471,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 101.82,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 102.168,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 102.516,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 102.864,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 103.213,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 103.584,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 103.933,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 104.258,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 104.583,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 104.908,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 105.256,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 105.604,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 105.976,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 106.301,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 106.626,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 106.974,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 107.323,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 107.671,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 108.019,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 108.344,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 108.693,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 109.041,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 109.389,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 109.714,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 110.063,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 110.388,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 110.736,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 111.061,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 111.456,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 111.781,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 112.129,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 112.454,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 112.826,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 113.174,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 113.522,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 113.847,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 114.173,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 114.521,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 114.869,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 115.194,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 115.542,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 115.891,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 116.239,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 116.587,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 116.936,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 117.261,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 117.586,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 117.934,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 118.282,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 118.631,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 118.979,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 119.327,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 119.699,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 120.024,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 120.372,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 120.697,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 121.046,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 121.394,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 121.742,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 122.091,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 122.462,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 122.787,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 123.135,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 123.484,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 123.855,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 124.204,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 124.552,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 124.9,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 125.225,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 125.55,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 125.899,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 126.247,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 126.618,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 126.92,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 127.269,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 127.617,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 127.965,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 128.313,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 128.685,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 129.033,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 129.382,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 129.73,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 130.078,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 130.426,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 130.798,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 131.146,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 131.495,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 131.82,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 132.168,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 132.516,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 132.865,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 133.213,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 133.561,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 133.909,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 134.258,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 134.606,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 134.931,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 135.279,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 135.628,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 135.953,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 136.301,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 136.649,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 136.998,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 137.346,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 137.694,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 138.019,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 138.368,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 138.716,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 139.064,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 139.413,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 139.761,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 140.109,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 140.458,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 140.806,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 141.154,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 141.479,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 141.827,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 142.176,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 142.501,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 142.849,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 143.174,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 143.523,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 143.871,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 144.219,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 144.567,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 144.916,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 145.264,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 145.589,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 145.914,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 146.262,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 146.611,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 146.959,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 147.284,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 147.632,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 147.981,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 148.329,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 148.677,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 149.026,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 149.351,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 149.676,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 150.024,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 150.372,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 150.698,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 151.046,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 151.394,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 151.742,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 152.091,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 152.439,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 152.787,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 153.112,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 153.437,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 153.786,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 154.134,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 154.459,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 154.807,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 155.156,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 155.504,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 155.852,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 156.201,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 156.526,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 156.874,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 157.199,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 157.547,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 157.896,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 158.244,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 158.592,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 158.964,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 159.289,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 159.614,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 159.962,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 160.311,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 160.659,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 161.03,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 161.379,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 161.727,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 162.075,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 162.424,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 162.772,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 163.12,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 163.445,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 163.794,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 164.142,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 164.49,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 164.838,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 165.164,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 165.512,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 165.86,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 166.208,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 166.534,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 166.882,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 167.23,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 167.578,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 167.927,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 168.252,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 168.6,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 168.948,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 169.32,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 169.668,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 170.017,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 170.365,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 170.713,
+      "chord": "B5",
+      "pitch_class": 11
+    },
+    {
+      "time": 171.038,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 171.386,
+      "chord": "G5",
+      "pitch_class": 7
+    },
+    {
+      "time": 171.735,
+      "chord": "E5",
+      "pitch_class": 4
+    },
+    {
+      "time": 172.083,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 172.431,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 172.78,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 173.128,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 173.476,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 173.801,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 174.173,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 174.544,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 174.893,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 175.241,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 175.589,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 175.961,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 176.309,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 176.657,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 177.006,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 177.354,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 177.702,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 178.051,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 178.399,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 178.747,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 179.119,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 179.444,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 179.792,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 180.14,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 180.489,
+      "chord": "A#5",
+      "pitch_class": 10
+    },
+    {
+      "time": 180.86,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 181.209,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 181.557,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 181.905,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 182.253,
+      "chord": "D5",
+      "pitch_class": 2
+    },
+    {
+      "time": 182.602,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 182.95,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 183.298,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 183.623,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 183.995,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 184.343,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 184.715,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 185.063,
+      "chord": "A5",
+      "pitch_class": 9
+    },
+    {
+      "time": 185.411,
+      "chord": "A5",
+      "pitch_class": 9
+    }
+  ]
+}

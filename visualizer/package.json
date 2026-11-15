@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "CyberJam React visualizer — Menu + Visualizer views consuming the engine WebSocket/Web Audio contracts.",
+  "description": "CyberJam React visualizer \u2014 Menu + Visualizer views consuming the engine WebSocket/Web Audio contracts.",
   "scripts": {
     "dev": "bash ./dev.sh",
     "build": "tsc -b && vite build",
@@ -16,6 +16,7 @@
     "pixi.js": "8.6.6",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "tone": "^15.1.22",
     "zustand": "5.0.2"
   },
   "overrides": {

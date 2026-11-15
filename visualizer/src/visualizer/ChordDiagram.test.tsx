@@ -27,4 +27,17 @@ describe("ChordDiagram", () => {
     expect(screen.getByTestId("dot-1")).toBeInTheDocument();
     expect(screen.queryByTestId("marker-1")).not.toBeInTheDocument();
   });
+
+  it("scrolls the window and labels the base fret for high positions", () => {
+    // D#5 roots on the A string at fret 6 — above the default 4 rows.
+    render(<ChordDiagram chord={getChord("D#5")!} />);
+    expect(screen.getByTestId("base-fret")).toHaveTextContent("5fr");
+    // The dot for fret 6 renders one row below the window base.
+    expect(screen.getByTestId("dot-1")).toBeInTheDocument();
+  });
+
+  it("keeps the nut for open-position shapes", () => {
+    render(<ChordDiagram chord={getChord("E5")!} />);
+    expect(screen.queryByTestId("base-fret")).not.toBeInTheDocument();
+  });
 });
