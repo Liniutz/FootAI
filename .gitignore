@@ -21,3 +21,6 @@ build/
 # Downloaded model bundles (recreate with scripts/download_default_models.sh)
 models/pretrained/
 models/groovae/
+
+# Local virtualenv symlink (worktrees point at the main checkout)
+.venv

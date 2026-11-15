@@ -44,6 +44,17 @@ async def start(request: web.Request) -> web.Response:
     if process_running():
         return web.json_response({"running": True, "started": False})
 
+    try:
+        payload = await request.json()
+    except (ValueError, web.HTTPException):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    # Fixed-song sessions play real multitrack stems in the browser. The engine
+    # stays up only for the live guitar passthrough (and DSP telemetry), with no
+    # RNN and no generated backing band.
+    passthrough_only = bool(payload.get("passthrough_only"))
+
     fish = __import__("shutil").which("fish")
     launcher = ROOT / "start_cyberjam.sh"
     if not fish or not launcher.exists():
@@ -58,58 +69,58 @@ async def start(request: web.Request) -> web.Response:
     loopback_script = ROOT / "scripts" / "setup_pipewire_loopback.sh"
     pw_loopback = __import__("shutil").which("pw-loopback")
     if not pw_loopback or not loopback_script.exists():
-        return web.json_response(
-            {"running": False, "error": "pw-loopback or scripts/setup_pipewire_loopback.sh is unavailable"},
-            status=500,
-        )
-    LOOPBACK = subprocess.Popen(
-        [str(loopback_script)],
-        cwd=ROOT,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True,
-    )
-    # Confirm the actual PipeWire source appeared, not merely that pw-loopback
-    # remained alive. Poll briefly because graph registration is asynchronous.
-    pw_cli = __import__("shutil").which("pw-cli")
-    source_ready = False
-    for _ in range(20):
-        if LOOPBACK.poll() is not None:
-            break
-        if pw_cli:
-            probe = await asyncio.create_subprocess_exec(
-                pw_cli, "ls", "Node", stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+        if not passthrough_only:
+            return web.json_response(
+                {"running": False, "error": "pw-loopback or scripts/setup_pipewire_loopback.sh is unavailable"},
+                status=500,
             )
-            output, _ = await probe.communicate()
-            if b'node.name = "CyberJam_VisualSource"' in output and b'node.description = "CyberJam Visual Audio"' in output:
-                source_ready = True
-                break
-        await asyncio.sleep(0.25)
-    if not source_ready:
-        code = LOOPBACK.poll()
-        if code is None:
-            os.killpg(LOOPBACK.pid, signal.SIGTERM)
-            await asyncio.to_thread(LOOPBACK.wait, 3)
-        LOOPBACK = None
-        return web.json_response(
-            {
-                "running": False,
-                "error": (
-                    f"PipeWire virtual source did not register (pw-loopback exit={code}); "
-                    "check PipeWire and run scripts/setup_pipewire_loopback.sh manually"
-                ),
-            },
-            status=500,
+    else:
+        LOOPBACK = subprocess.Popen(
+            [str(loopback_script)],
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
         )
+        # Confirm the actual PipeWire source appeared, not merely that pw-loopback
+        # remained alive. Poll briefly because graph registration is asynchronous.
+        pw_cli = __import__("shutil").which("pw-cli")
+        source_ready = False
+        for _ in range(20):
+            if LOOPBACK.poll() is not None:
+                break
+            if pw_cli:
+                probe = await asyncio.create_subprocess_exec(
+                    pw_cli, "ls", "Node", stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
+                )
+                output, _ = await probe.communicate()
+                if b'node.name = "CyberJam_VisualSource"' in output and b'node.description = "CyberJam Visual Audio"' in output:
+                    source_ready = True
+                    break
+            await asyncio.sleep(0.25)
+        if not source_ready and not passthrough_only:
+            code = LOOPBACK.poll()
+            if code is None:
+                os.killpg(LOOPBACK.pid, signal.SIGTERM)
+                await asyncio.to_thread(LOOPBACK.wait, 3)
+            LOOPBACK = None
+            return web.json_response(
+                {
+                    "running": False,
+                    "error": (
+                        f"PipeWire virtual source did not register (pw-loopback exit={code}); "
+                        "check PipeWire and run scripts/setup_pipewire_loopback.sh manually"
+                    ),
+                },
+                status=500,
+            )
+        if not source_ready:
+            # The visual loopback is optional for song sessions: passthrough must
+            # keep working even when the virtual source cannot register.
+            print("Warning: PipeWire visual source unavailable; continuing passthrough-only.", flush=True)
 
-    # Freestyle capture is automatic for Menu-started live sessions; explicit
-    # command-line --demo remains available when launching the script directly.
-    try:
-        payload = await request.json()
-    except (ValueError, web.HTTPException):
-        payload = {}
-    freestyle = payload.get("mode") == "freestyle" if isinstance(payload, dict) else False
+    freestyle = payload.get("mode") == "freestyle"
     models = "cargo"
     if isinstance(payload, dict) and payload.get("models"):
         models = str(payload["models"]).strip().lower()
@@ -126,10 +137,17 @@ async def start(request: web.Request) -> web.Response:
     block = str(environment.get("CYBERJAM_BLOCK", "128"))
     environment["CYBERJAM_BLOCK"] = block
     environment.setdefault("CYBERJAM_LATENCY", "low")
+    # Passthrough-only sessions keep software monitoring on and the band off.
+    environment["CYBERJAM_PASSTHROUGH"] = "1"
+    launcher_args = [fish, str(launcher), "--models", models, "--block", block]
+    if passthrough_only:
+        environment["CYBERJAM_BAND"] = "0"
+        environment["CYBERJAM_RNN"] = "0"
+        launcher_args += ["--no-rnn", "--no-band"]
     # Use the supported live-session launcher (guitar passthrough, DSP, backing
     # band, telemetry and optional Magenta worker), not experimental run_session.py.
     PROCESS = subprocess.Popen(
-        [fish, str(launcher), "--models", models, "--block", block],
+        launcher_args,
         cwd=ROOT,
         env=environment,
         start_new_session=True,
@@ -143,7 +161,14 @@ async def start(request: web.Request) -> web.Response:
             {"running": False, "error": f"Engine exited during startup (code {code})"},
             status=500,
         )
-    return web.json_response({"running": True, "started": True, "models": models})
+    return web.json_response(
+        {
+            "running": True,
+            "started": True,
+            "models": models,
+            "passthrough_only": passthrough_only,
+        }
+    )
 
 
 async def stop(_request: web.Request) -> web.Response:

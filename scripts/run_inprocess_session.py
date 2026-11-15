@@ -100,6 +100,10 @@ MODEL_SETS: dict[str, dict[str, str]] = {
 }
 
 RNN_ENABLED = os.environ.get("CYBERJAM_RNN", "1") != "0"
+# Play the generated backing band (synth + sequencer). Disable for fixed song
+# sessions that play real multitrack stems in the browser: the engine then only
+# keeps the live guitar passthrough and the DSP/telemetry feed alive.
+BAND_ENABLED = os.environ.get("CYBERJAM_BAND", "1") != "0"
 RNN_PYTHON = os.environ.get("CYBERJAM_RNN_PYTHON", os.path.join(BASE_DIR, ".venv-magenta/bin/python"))
 RNN_WORKER = os.path.join(BASE_DIR, "scripts/rnn_worker.py")
 RNN_SET = os.environ.get("CYBERJAM_RNN_SET", "cargo")
@@ -256,6 +260,9 @@ class InProcessCyberJamSession:
 
     # ------------------------------------------------------------------ synth
     def _init_synth(self) -> None:
+        if not BAND_ENABLED:
+            logger.info("Backing band disabled: passthrough-only session (no generated notes).")
+            return
         if not HAS_FLUIDSYNTH:
             logger.warning("fluidsynth python package missing; backing band will be MIDI-only.")
             return
@@ -945,7 +952,8 @@ class InProcessCyberJamSession:
                     logger.error("Could not open passthrough streams (%s). Falling back to DSP capture.", exc2)
                     self.dsp.start()
 
-        self.ml.start()
+        if BAND_ENABLED:
+            self.ml.start()
         await self.telemetry.start()
 
         # Start the Magenta RNN worker (separate Python 3.9 venv). Non-fatal.
@@ -965,10 +973,12 @@ class InProcessCyberJamSession:
                 self._rnn = None
 
         self._synth_stop.clear()
-        self._play_test_tone()
+        if BAND_ENABLED:
+            self._play_test_tone()
         threading.Thread(target=self._passthrough_loop, name="Passthrough", daemon=True).start()
-        self._synth_thread = threading.Thread(target=self._synth_audio_loop, daemon=True)
-        self._synth_thread.start()
+        if BAND_ENABLED:
+            self._synth_thread = threading.Thread(target=self._synth_audio_loop, daemon=True)
+            self._synth_thread.start()
         threading.Thread(target=self._status_loop, daemon=True).start()
 
         mcp_thread = threading.Thread(target=lambda: asyncio.run(self.mcp_server.start()), daemon=True)
@@ -979,9 +989,12 @@ class InProcessCyberJamSession:
         logger.info(" - Guitar: %s -> %s passthrough + DSP analysis",
                     self._capture_name or "no input",
                     ", ".join(self._monitor_names) or "no output")
-        logger.info(" - Band arms itself after first BPM + key detection")
-        logger.info(" - Generation: %s", f"Magenta RNN bundles [{RNN_SET}]" if self._rnn else "algorithmic fallback")
-        logger.info(" - Drum kit: %s", self._drum_kit_name)
+        if BAND_ENABLED:
+            logger.info(" - Band arms itself after first BPM + key detection")
+            logger.info(" - Generation: %s", f"Magenta RNN bundles [{RNN_SET}]" if self._rnn else "algorithmic fallback")
+            logger.info(" - Drum kit: %s", self._drum_kit_name)
+        else:
+            logger.info(" - Band: disabled (passthrough-only; song stems come from the browser)")
         logger.info(" - Telemetry: ws://127.0.0.1:8080 | MCP: http://127.0.0.1:3900")
         logger.info("==================================================")
 
@@ -1033,6 +1046,11 @@ def _parse_args() -> "argparse.Namespace":
         help="Override the directory that holds the .mag bundles.",
     )
     parser.add_argument("--no-rnn", action="store_true", help="Disable the RNN worker entirely.")
+    parser.add_argument(
+        "--no-band",
+        action="store_true",
+        help="Passthrough + DSP only: no generated band, no sequencer (fixed song stems play elsewhere).",
+    )
     parser.add_argument("--lead", action="store_true", help="Enable the generated lead line.")
     parser.add_argument("--creativity", type=float, default=None, help="Fallback engine creativity 0..1.")
     parser.add_argument(
@@ -1117,7 +1135,7 @@ def _list_drum_kits(soundfont: str) -> None:
 def main() -> None:
     global RNN_SET, RNN_MODELS_DIR, RNN_ENABLED, LEAD_ENABLED, CREATIVITY, DEMO_MODE, DEMO_BARS
     global SOUNDFONT_PATH, DRUM_SOUNDFONT, DRUM_KIT, DRUM_PRESET
-    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH, BPM_FACTOR
+    global SYNTH_DEVICE, BLOCK_SIZE, PASSTHROUGH, BPM_FACTOR, BAND_ENABLED
 
     args = _parse_args()
 
@@ -1125,9 +1143,11 @@ def main() -> None:
         _list_drum_kits(args.soundfont)
         return
 
+    if args.no_band:
+        BAND_ENABLED = False
     RNN_SET = args.models
     RNN_MODELS_DIR = args.rnn_models_dir or MODEL_SETS[RNN_SET]["dir"]
-    if args.no_rnn:
+    if args.no_rnn or not BAND_ENABLED:
         RNN_ENABLED = False
     if args.lead:
         LEAD_ENABLED = True

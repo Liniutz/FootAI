@@ -35,6 +35,20 @@ describe("startEngineSession", () => {
     });
   });
 
+  it("requests passthrough-only sessions without the generated band", async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ running: true, started: true }), { status: 200 }),
+    );
+    await expect(
+      startEngineSession("song", fetcher, { passthroughOnly: true }),
+    ).resolves.toEqual({ running: true, started: true });
+    expect(fetcher).toHaveBeenCalledWith("/api/session/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode: "song", passthrough_only: true }),
+    });
+  });
+
   it("surfaces service-offline guidance", async () => {
     const fetcher = vi.fn().mockRejectedValue(new TypeError("offline"));
     const result = await startEngineSession("song", fetcher);

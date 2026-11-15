@@ -91,7 +91,7 @@ describe("MenuView", () => {
     expect(screen.getByLabelText("Beginner coach")).toBeInTheDocument();
   });
 
-  it("starts the engine pipeline before navigating to the Visualizer", async () => {
+  it("starts the Cargo backing track and a passthrough-only monitor (no RNN)", async () => {
     render(<MenuView />);
 
     expect(screen.getByRole("button", { name: /START/ })).toBeDisabled();
@@ -115,11 +115,13 @@ describe("MenuView", () => {
       // the engine session; flush a macrotask so both settle.
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    await waitFor(() => expect(startEngineSession).toHaveBeenCalledWith("song"));
-    expect(window.location.hash).toBe("#/menu");
+    // Stems come from the browser; the engine only provides guitar passthrough.
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Session live on TV."),
+      expect(startEngineSession).toHaveBeenCalledWith("song", undefined, {
+        passthroughOnly: true,
+      }),
     );
+    expect(window.location.hash).toBe("#/menu");
     expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
   });
 

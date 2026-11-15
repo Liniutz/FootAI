@@ -100,8 +100,8 @@ the `CyberJam_Band` port. The visualizer degrades gracefully (`unsupported` / `d
 
 Aligned multitrack WAV stems for the Cargo songs, served statically by the visualizer dev/build
 under `visualizer/public/<slug>/` (no new ports, no backend). Selecting one of these songs in the
-Menu and pressing **START** plays the stems in sync with live guitar input; the Python engine
-session is still attempted but never blocks stem playback. All songs:
+Menu and pressing **START** plays the stems in sync with live guitar input; the engine starts in
+passthrough-only mode (guitar monitoring, no models) and never blocks stem playback. All songs:
 
 | Song (catalog id) | Stem slug | Reference BPM |
 | :--- | :--- | :--- |
@@ -122,13 +122,23 @@ Each slug folder holds six stems — `drums.wav`, `bass.wav`, `vocals.wav`, `gui
 ```
 
 - **Player:** `CargoBandEngine` (`visualizer/src/audio/cargoBandEngine.ts`) loads the map, `HEAD`-checks
-  all six WAVs, then plays them as Tone.js `GrainPlayer`s synced to the Transport. Fetches are
-  URL-encoded per path segment (`andri popa` → `andri%20popa`). Missing files/maps fail loudly in a
-  `role="alert"` hint on the Menu and never break the normal engine/telemetry flow.
+  all six WAVs, then plays them as **plain `HTMLAudioElement`s** (one per stem) started directly from
+  the START click — the browser's own gesture path, so no Web Audio autoplay unlock is required.
+  Fetches are URL-encoded per path segment (`andri popa` → `andri%20popa`). Missing files/maps fail
+  loudly in a `role="alert"` hint on the Menu and never break the normal engine/telemetry flow.
+- **Mix:** all six stems play — `drums` (0.9) plus `bass`, `vocals`, `guitar`, `piano`, `other`
+  (0.85). The visitor plays **rhythm guitar**, so the recorded lead/other guitar stays in the mix
+  instead of being muted. Per-stem levels are exposed by `diagnostics()` (`levels`) for console
+  verification.
+- **Engine in song mode:** START also calls the session-control service with
+  `{"mode": "song", "passthrough_only": true}`. The engine then runs **passthrough-only**: live guitar
+  monitoring + DSP/telemetry stay on, while the RNN worker and the generated backing band (drums/bass
+  models) are disabled (`--no-rnn --no-band`). Stems never depend on that request succeeding; a
+  failure only shows a non-blocking "Guitar monitor unavailable" hint.
 - **Guitar-engine WebSocket (`ws://127.0.0.1:8765`)** — optional service (`cargo-audio-engine/server.py`).
   The client sends `{ "base_bpm": <number> }` on connect and consumes frames
   `{ "live_bpm": number, "is_playing": boolean, "energy": number, "detected_pitch_class": int }`.
-  Stems' `playbackRate` scales with `live_bpm / base_bpm` (clamped 0.5–2) and the guitar stem ducks
-  to −14 dB while the visitor is strumming. Offline service = plain stems at reference tempo.
+  Stems' `playbackRate` scales with `live_bpm / base_bpm` (clamped 0.5–2). The recorded guitar stem
+  plays at its normal level (no ducking). Offline service = plain stems at reference tempo.
 - **Chord readout / beginner coach:** current + next chord come from `song_map.json` segments sampled
   at bar boundaries (`240 / base_bpm` seconds per 4/4 bar) — see `src/visualizer/songMapChords.ts`.

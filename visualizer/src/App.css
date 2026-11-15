@@ -229,6 +229,9 @@
   min-height: 0;
   gap: 0;
   padding: clamp(0.5rem, 1.5vw, 1.5rem);
+  background:
+    linear-gradient(180deg, rgba(6, 9, 16, 0.12), rgba(6, 9, 16, 0.5)),
+    url("/m1.jpeg") center / cover no-repeat;
 }
 
 @media (max-width: 720px) {
