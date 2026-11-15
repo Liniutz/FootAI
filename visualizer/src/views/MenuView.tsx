@@ -99,6 +99,8 @@ export function MenuView() {
   useEffect(() => {
     const engine = new CargoBandEngine({ onVisualUpdate: setCargoVisual });
     cargoEngineRef.current = engine;
+    // Debug handle for the operator console / automated smoke tests.
+    (window as unknown as { __cyberjamCargo?: CargoBandEngine }).__cyberjamCargo = engine;
     return () => {
       engine.dispose();
       cargoEngineRef.current = null;
@@ -145,7 +147,14 @@ export function MenuView() {
         await engine.loadSong(stemSong);
         engine.connectToGuitarEngine();
         await engine.play();
-        setStopMessage("Session and Cargo stems live on TV.");
+        const diag = await engine.diagnostics();
+        if (diag.context !== "running") {
+          setCargoError(
+            `Browser blocked audio (context ${diag.context}). Click START again to allow sound.`,
+          );
+        } else {
+          setStopMessage("Session and Cargo stems live on TV.");
+        }
       } catch (error) {
         setCargoError(error instanceof Error ? error.message : "Cargo stems could not be loaded.");
       } finally {
