@@ -37,27 +37,31 @@ const START_R = 120; // px, approach circle radius at Beat 1 start
 export function BeginnerCoach() {
   const selection = useVisualizerStore((s) => s.selection);
   const songId = selection.songId;
+  const coachRunId = useVisualizerStore((s) => s.coachRunId);
+  const coachStartedAtMs = useVisualizerStore((s) => s.coachStartedAtMs);
 
-  // Tempo comes from the song's reference BPM (deterministic, engine-less).
-  const bpm = (songId && getSongById(songId)?.referenceBpm) || 120;
+  // While the stem map has not loaded yet, fall back to the catalog BPM.
+  const catalogBpm = (songId && getSongById(songId)?.referenceBpm) || 120;
 
   const [barIndex, setBarIndex] = useState(0);
   const [verdict, setVerdict] = useState<HitVerdict | null>(null);
   // Real bar-by-bar chords for Cargo stem songs; falls back to the static
   // progression table while loading or when the map is unavailable.
-  const [stemProgression, setStemProgression] = useState<readonly string[] | null>(null);
+  const [stemMap, setStemMap] = useState<{ progression: readonly string[]; baseBpm: number } | null>(null);
   const stemSlug = songId ? getSongById(songId)?.cargoStemSlug : undefined;
+  // Use the WAV mix's own tempo so the bar clock does not drift from the stems.
+  const bpm = stemMap?.baseBpm ?? catalogBpm;
 
   useEffect(() => {
     if (!stemSlug) {
-      setStemProgression(null);
+      setStemMap(null);
       return;
     }
     let cancelled = false;
-    setStemProgression(null);
+    setStemMap(null);
     fetchStemProgression(stemSlug)
-      .then((progression) => {
-        if (!cancelled && progression.length > 0) setStemProgression(progression);
+      .then((result) => {
+        if (!cancelled && result.progression.length > 0) setStemMap(result);
       })
       .catch(() => {
         // Optional enrichment: the static progression keeps the coach usable.
@@ -73,11 +77,23 @@ export function BeginnerCoach() {
   const lastBarRef = useRef<number>(0);
   const verdictTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Animate the approach circle from the local beat clock.
+  // Animate the approach circle from the playback-locked beat clock.
+  // `coachRunId` bumps on every START, so the tutorial restarts from bar 1 in
+  // sync with the WAVs; `coachStartedAtMs` keeps that origin stable when the
+  // stem tempo/map arrives slightly later.
   useEffect(() => {
-    startRef.current = performance.now();
-    lastBarRef.current = 0;
-    setBarIndex(0);
+    const origin =
+      coachStartedAtMs ?? (typeof performance !== "undefined" ? performance.now() : 0);
+    startRef.current = origin;
+    if (verdictTimer.current) clearTimeout(verdictTimer.current);
+    verdictTimer.current = null;
+    setVerdict(null);
+    targetRef.current?.setAttribute("stroke", "#5a6b86");
+
+    const now = typeof performance !== "undefined" ? performance.now() : origin;
+    const initialBar = Math.max(0, barPhase(Math.max(0, now - origin), bpm).barIndex);
+    lastBarRef.current = initialBar;
+    setBarIndex(initialBar);
 
     const loop = new RenderLoop({
       onFrame: (now) => {
@@ -96,7 +112,7 @@ export function BeginnerCoach() {
     });
     loop.start();
     return () => loop.stop();
-  }, [bpm]);
+  }, [bpm, coachRunId, coachStartedAtMs]);
 
   // Judge strums (onset) against the beat clock and flash the target.
   const latestFrame = useVisualizerStore((s) => s.latestFrame);
@@ -126,9 +142,10 @@ export function BeginnerCoach() {
   );
 
   const barName = (index: number): string => {
-    if (stemProgression && stemProgression.length > 0) {
-      const safe = ((index % stemProgression.length) + stemProgression.length) % stemProgression.length;
-      return stemProgression[safe];
+    const progression = stemMap?.progression;
+    if (progression && progression.length > 0) {
+      const safe = ((index % progression.length) + progression.length) % progression.length;
+      return progression[safe];
     }
     return chordForBar(songId, index).name;
   };

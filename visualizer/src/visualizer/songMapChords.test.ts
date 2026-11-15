@@ -26,10 +26,12 @@ describe("fetchStemProgression", () => {
         { time: 6, chord: "B5", pitch_class: 11 },
       ],
     });
-    const progression = await fetchStemProgression("ziua_vrajitoarelor");
+    const { progression, baseBpm } = await fetchStemProgression("ziua_vrajitoarelor");
     // Bar times 0,2,4,6,8,10 — a chord starting exactly on a boundary
     // (B5 at t=6) belongs to the new bar.
     expect(progression).toEqual(["E5", "E5", "A5", "B5", "B5", "B5"]);
+    // The coach must use the stem mix's tempo, not the catalog's rounded one.
+    expect(baseBpm).toBe(120);
   });
 
   it("uses the first chord for bars before any segment starts", async () => {
@@ -37,7 +39,7 @@ describe("fetchStemProgression", () => {
       base_bpm: 60, // bar = 4 s
       chords: [{ time: 5, chord: "A5", pitch_class: 9 }],
     });
-    const progression = await fetchStemProgression("track");
+    const { progression } = await fetchStemProgression("track");
     expect(progression[0]).toBe("A5");
     // Duration fallback: ceil(5 / 4) = 2 bars.
     expect(progression).toHaveLength(2);

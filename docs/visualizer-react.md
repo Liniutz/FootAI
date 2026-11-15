@@ -581,16 +581,21 @@ view). Added after the per-song difficulty-mode menu step.
   `src/visualizer/chords.ts` (open chords plus every rock **power chord** `C5`…`B5` via
   `powerChordShape`; `free-jam` → E–A–D–A, default fallback otherwise; the progression loops per
   bar).
-- **Real stem-song chords** (`src/visualizer/songMapChords.ts`): for Cargo stem songs the coach
-  fetches `/<slug>/song_map.json` and samples the map's chord segments at each bar boundary
-  (`bar = 240 / base_bpm`; a chord starting exactly on a boundary belongs to the new bar), so the
-  tutorial shows the song's actual progression (Ziua Vrăjitoarelor → `E5`/`B5`/`A5`…) instead of a
-  hardcoded loop. Falls back to the static table in `chords.ts` while loading or on failure.
+- **Real stem-song chords & tempo** (`src/visualizer/songMapChords.ts`): for Cargo stem songs the
+  coach fetches `/<slug>/song_map.json`, samples the map's chord segments at each bar boundary
+  (`bar = 240 / base_bpm`; a chord starting exactly on a boundary belongs to the new bar), and returns
+  the exact `base_bpm` alongside the progression so the beat clock matches the WAVs instead of
+  drifting against rounded catalog BPMs. Falls back to the static table/BPM while loading or on
+  failure.
+- **Restart on START:** pressing **START** in `MenuView` calls `restartCoach(engine.playbackSeconds())`
+  (or `restartCoach()` for non-stem sessions), bumping `coachRunId` and anchoring `coachStartedAtMs`
+  to the WAV playback position so the tutorial resets to bar 1 in sync with the audio.
 - **Approach circle** (`src/visualizer/BeginnerCoach.tsx`): a static target ring with a shrinking
-  outer ring that contracts in time with the song's **reference BPM in 4/4** and converges exactly
-  on **Beat 1** of each bar. Driven by a local beat clock (`src/visualizer/beatClock.ts`) off a
-  `RenderLoop`, writing the radius straight to the SVG via a ref (no per-frame React render). On each
-  bar boundary the progression advances and the circle resets.
+  outer ring that contracts in time with the song's **active BPM (`baseBpm` for stem songs,
+  `referenceBpm` otherwise) in 4/4** and converges exactly on **Beat 1** of each bar. Driven by a
+  local beat clock (`src/visualizer/beatClock.ts`) off a `RenderLoop`, writing the radius straight
+  to the SVG via a ref (no per-frame React render). On each bar boundary the progression advances
+  and the circle resets.
 - **Timing feedback replaces an audio cue:** when the player strums (telemetry `onset`), the target
   ring flashes **green** (perfect/good), **yellow** (ok), or **red** (miss) based on the strum's
   absolute error to Beat 1, using tempo-scaled windows (`hitWindowsForBpm`).

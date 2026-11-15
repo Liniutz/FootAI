@@ -149,6 +149,8 @@ export function MenuView() {
         await engine.loadSong(stemSong);
         engine.connectToGuitarEngine();
         await engine.play();
+        // Start the beginner tutorial from bar 1 exactly with the WAVs.
+        useVisualizerStore.getState().restartCoach(engine.playbackSeconds());
         const diag = await engine.diagnostics();
         if (diag.context !== "running") {
           setCargoError(
@@ -174,6 +176,8 @@ export function MenuView() {
     setStarting(false);
     if (result.running) {
       setStopMessage("Session live on TV.");
+      // Line the beginner tutorial up with a fresh take.
+      useVisualizerStore.getState().restartCoach();
     }
     if (!result.running) {
       setStartError(result.error ?? "Could not start the CyberJam engine.");

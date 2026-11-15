@@ -169,6 +169,11 @@ export class CargoBandEngine {
     }
   }
 
+  /** Current stem position in seconds (0 when stopped). */
+  playbackSeconds(): number {
+    return this.currentPlaybackSeconds();
+  }
+
   async play(): Promise<void> {
     const players = Object.values(this.players);
     if (players.length === 0) throw new Error("No Cargo stems loaded.");

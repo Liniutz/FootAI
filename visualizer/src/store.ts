@@ -59,6 +59,16 @@ export interface VisualizerState {
   setMode: (mode: DifficultyMode | null) => void;
   toggleInstrument: (instrumentId: string) => void;
   resetSelection: () => void;
+
+  // --- Beginner coach timeline ------------------------------------------
+  /**
+   * Bumped every time START begins playback. The coach watches this to reset
+   * its bar clock so the tutorial lines up with the WAVs from bar 1.
+   */
+  coachRunId: number;
+  /** `performance.now()` corresponding to playback second 0, or null. */
+  coachStartedAtMs: number | null;
+  restartCoach: (positionSeconds?: number) => void;
 }
 
 export const useVisualizerStore = create<VisualizerState>((set) => ({
@@ -104,4 +114,16 @@ export const useVisualizerStore = create<VisualizerState>((set) => ({
       return { selection: { ...state.selection, instrumentIds } };
     }),
   resetSelection: () => set({ selection: INITIAL_SELECTION }),
+
+  coachRunId: 0,
+  coachStartedAtMs: null,
+  restartCoach: (positionSeconds = 0) =>
+    set((state) => ({
+      coachRunId: state.coachRunId + 1,
+      // Subtract any position already played so the bar clock starts at 0.
+      coachStartedAtMs:
+        typeof performance !== "undefined"
+          ? performance.now() - positionSeconds * 1000
+          : null,
+    })),
 }));

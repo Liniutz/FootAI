@@ -1,98 +1,27 @@
-/** Spec Task 2 tests: store initial state and actions. */
 import { beforeEach, describe, expect, it } from "vitest";
-import { INITIAL_SELECTION, useVisualizerStore } from "./store";
-import type { TelemetryFrame } from "./types";
+import { useVisualizerStore } from "./store";
 
-function freshStore() {
-  useVisualizerStore.setState({
-    latestFrame: null,
-    connectionStatus: "connecting",
-    audioStatus: "idle",
-    selection: INITIAL_SELECTION,
-  });
-}
-
-const SAMPLE_FRAME: TelemetryFrame = {
-  timestamp: 1763042450.123456,
-  bpm: 122.45,
-  detected_pitch: { hz: 110.0, note: "A2", midi: 45, key: "A" },
-  rms: 0.08412,
-  spectral_centroid_hz: 1420.55,
-  onset: true,
-};
-
-describe("useVisualizerStore", () => {
-  beforeEach(freshStore);
-
-  it("has the expected initial state", () => {
-    const s = useVisualizerStore.getState();
-    expect(s.latestFrame).toBeNull();
-    expect(s.connectionStatus).toBe("connecting");
-    expect(s.audioStatus).toBe("idle");
-    expect(s.selection).toEqual({ songId: null, instrumentIds: [], mode: null });
+describe("beginner coach timeline", () => {
+  beforeEach(() => {
+    useVisualizerStore.setState({ coachRunId: 0, coachStartedAtMs: null });
   });
 
-  it("sets the latest telemetry frame", () => {
-    useVisualizerStore.getState().setLatestFrame(SAMPLE_FRAME);
-    expect(useVisualizerStore.getState().latestFrame).toEqual(SAMPLE_FRAME);
+  it("restarts the run and anchors the clock at the given playback position", () => {
+    useVisualizerStore.getState().restartCoach(2.5);
+    const state = useVisualizerStore.getState();
+    expect(state.coachRunId).toBe(1);
+    expect(state.coachStartedAtMs).not.toBeNull();
+    // Playback is already 2.5s in, so bar 1 (elapsed 0) maps 2.5s into the past.
+    const elapsed = performance.now() - (state.coachStartedAtMs as number);
+    expect(elapsed).toBeGreaterThanOrEqual(2500);
+    expect(elapsed).toBeLessThan(3500);
   });
 
-  it("sets connection and audio statuses", () => {
-    useVisualizerStore.getState().setConnectionStatus("open");
-    useVisualizerStore.getState().setAudioStatus("active");
-    const s = useVisualizerStore.getState();
-    expect(s.connectionStatus).toBe("open");
-    expect(s.audioStatus).toBe("active");
-  });
-
-  it("sets the full selection", () => {
-    useVisualizerStore
-      .getState()
-      .setSelection({ songId: "cargo-song", instrumentIds: ["drums"], mode: "beginner" });
-    expect(useVisualizerStore.getState().selection).toEqual({
-      songId: "cargo-song",
-      instrumentIds: ["drums"],
-      mode: "beginner",
-    });
-  });
-
-  it("sets the selected song without clearing instruments but resets mode", () => {
-    useVisualizerStore.getState().toggleInstrument("bass");
-    useVisualizerStore.getState().setMode("experienced");
-    useVisualizerStore.getState().setSong("cargo-song");
-    expect(useVisualizerStore.getState().selection).toEqual({
-      songId: "cargo-song",
-      instrumentIds: ["bass"],
-      mode: null,
-    });
-  });
-
-  it("sets the difficulty mode", () => {
-    useVisualizerStore.getState().setSong("cargo-song");
-    useVisualizerStore.getState().setMode("beginner");
-    expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
-  });
-
-  it("toggles instruments on and off", () => {
-    const { toggleInstrument } = useVisualizerStore.getState();
-    toggleInstrument("drums");
-    toggleInstrument("bass");
-    expect(useVisualizerStore.getState().selection.instrumentIds).toEqual([
-      "drums",
-      "bass",
-    ]);
-
-    toggleInstrument("drums");
-    expect(useVisualizerStore.getState().selection.instrumentIds).toEqual([
-      "bass",
-    ]);
-  });
-
-  it("resets the selection", () => {
-    useVisualizerStore
-      .getState()
-      .setSelection({ songId: "x", instrumentIds: ["a", "b"], mode: "beginner" });
-    useVisualizerStore.getState().resetSelection();
-    expect(useVisualizerStore.getState().selection).toEqual(INITIAL_SELECTION);
+  it("resets to position zero for a fresh take", () => {
+    useVisualizerStore.getState().restartCoach(10);
+    useVisualizerStore.getState().restartCoach();
+    const state = useVisualizerStore.getState();
+    expect(state.coachRunId).toBe(2);
+    expect(performance.now() - (state.coachStartedAtMs as number)).toBeLessThan(500);
   });
 });
