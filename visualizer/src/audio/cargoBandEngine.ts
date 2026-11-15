@@ -172,12 +172,20 @@ export class CargoBandEngine {
     };
   }
 
-  play(): void {
-    this.ensureTransport()
-      .then((transport) => transport.start())
-      .catch(() => {
-        // Audio is optional; browsers may still be waiting for a user gesture.
-      });
+  /**
+   * Resume the Web Audio context. Await this inside the user gesture that
+   * triggers playback (a button click) — browsers only allow it while a
+   * transient activation is live, which is gone after any slow network call.
+   */
+  async resumeAudio(): Promise<void> {
+    await ensureToneStarted();
+  }
+
+  /** Start Transport playback of the loaded stems (resume audio first). */
+  async play(): Promise<void> {
+    await ensureToneStarted();
+    const transport = await this.ensureTransport();
+    transport.start();
   }
 
   stop(): void {
@@ -213,12 +221,15 @@ export class CargoBandEngine {
   }
 }
 
-let toneStarted = false;
+/**
+ * Resume the Web Audio context. Called on every playback entry point: it is
+ * idempotent, and re-calling it inside a fresh user gesture is what actually
+ * unblocks a suspended context (the first attempt may have happened outside
+ * any gesture, e.g. while a view was mounting).
+ */
 async function ensureToneStarted(): Promise<void> {
-  if (toneStarted) return;
   const Tone = await import("tone");
   await Tone.start();
-  toneStarted = true;
 }
 
 async function defaultPlayerFactory(

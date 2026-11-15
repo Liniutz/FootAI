@@ -118,6 +118,17 @@ export function MenuView() {
     setStarting(true);
     setStartError(null);
     setStopMessage(null);
+    // Resume the Web Audio context FIRST, inside the click gesture: browsers
+    // allow it only during a transient activation, which expires during the
+    // (potentially slow) engine-session request below.
+    const stemSong = selectedSong?.cargoStemSlug;
+    if (stemSong && cargoEngineRef.current) {
+      try {
+        await cargoEngineRef.current.resumeAudio();
+      } catch {
+        // Blocked audio is surfaced when playback is attempted.
+      }
+    }
     const result = await startEngineSession(isFreestyleSong(selection.songId) ? "freestyle" : "song");
     setStarting(false);
     if (result.running) {
@@ -125,15 +136,15 @@ export function MenuView() {
     }
     // Stem songs play their real multitrack audio on START regardless of the
     // engine session; the generated band is a fallback, not a gate.
-    if (selectedSong?.cargoStemSlug) {
+    if (stemSong) {
       setCargoLoading(true);
       setCargoError(null);
       try {
         const engine = cargoEngineRef.current;
         if (!engine) throw new Error("Cargo audio engine is not ready.");
-        await engine.loadSong(selectedSong.cargoStemSlug);
+        await engine.loadSong(stemSong);
         engine.connectToGuitarEngine();
-        engine.play();
+        await engine.play();
         setStopMessage("Session and Cargo stems live on TV.");
       } catch (error) {
         setCargoError(error instanceof Error ? error.message : "Cargo stems could not be loaded.");
