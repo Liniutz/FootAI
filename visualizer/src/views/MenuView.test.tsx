@@ -1,6 +1,6 @@
 /** Spec Task 5 tests: Menu view selection, persistence, rehydrate, navigation. */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, act } from "@testing-library/react";
+import { cleanup, render, screen, act, waitFor } from "@testing-library/react";
 import { MenuView } from "./MenuView";
 import { useVisualizerStore } from "../store";
 import { INITIAL_SELECTION } from "../store";
@@ -111,11 +111,15 @@ describe("MenuView", () => {
 
     await act(async () => {
       ready.click();
-      await Promise.resolve();
+      // The START handler first resumes the (mocked) audio context, then calls
+      // the engine session; flush a macrotask so both settle.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    expect(startEngineSession).toHaveBeenCalledWith("song");
+    await waitFor(() => expect(startEngineSession).toHaveBeenCalledWith("song"));
     expect(window.location.hash).toBe("#/menu");
-    expect(screen.getByRole("status")).toHaveTextContent("Session live on TV.");
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent("Session live on TV."),
+    );
     expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
   });
 

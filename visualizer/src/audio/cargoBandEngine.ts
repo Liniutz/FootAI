@@ -46,6 +46,7 @@ export interface CargoBandOptions {
 /** Minimal transport surface, injected so tests and non-Tone players can run headlessly. */
 export interface CargoTransport {
   start(): void;
+  /** Stop AND rewind: synced sources are scheduled at transport time 0. */
   stop(): void;
   readonly seconds: number;
 }
@@ -276,14 +277,22 @@ async function defaultPlayerFactory(
 
 async function createToneTransport(): Promise<CargoTransport> {
   const Tone = await import("tone");
-  const transport = (Tone as { Transport?: { start(): void; stop(): void; seconds: number } }).Transport;
+  const transport = (Tone as {
+    Transport?: { start(): void; stop(): void; seconds: number; ticks: number };
+  }).Transport;
   if (!transport || typeof transport.stop !== "function") {
     // Headless/test environments: keep the engine functional without audio.
     return { start: () => {}, stop: () => {}, seconds: 0 };
   }
   return {
     start: () => transport.start(),
-    stop: () => transport.stop(),
+    stop: () => {
+      transport.stop();
+      // Tone's Transport.stop() keeps the playhead where it was. The stems are
+      // scheduled with sync().start(0), so without rewinding, a second START
+      // (or a START after Stop) would schedule them in the past and stay silent.
+      transport.ticks = 0;
+    },
     get seconds() { return transport.seconds; },
   };
 }
