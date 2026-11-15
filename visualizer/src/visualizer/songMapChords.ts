@@ -20,13 +20,20 @@ interface RawSongMap {
   chords?: unknown;
 }
 
+export interface StemProgression {
+  /** One chord name per 4/4 bar, in order. Loops with `bar % length`. */
+  progression: readonly string[];
+  /** The stem mix's real tempo, so the coach's bar clock matches the WAVs. */
+  baseBpm: number;
+}
+
 /**
  * Fetch `/<slug>/song_map.json` and return one chord name per bar, in order.
  * The returned list loops: bar N shows `list[N % list.length]`.
  */
 export async function fetchStemProgression(
   slug: string,
-): Promise<readonly string[]> {
+): Promise<StemProgression> {
   const safeSlug = slug.split("/").map(encodeURIComponent).join("/");
   const response = await fetch(`/${safeSlug}/song_map.json`);
   if (!response.ok) {
@@ -56,7 +63,7 @@ export async function fetchStemProgression(
     }
     progression.push(segments[cursor].chord);
   }
-  return progression;
+  return { progression, baseBpm: bpm };
 }
 
 /** Validate and narrow the raw JSON into clean {time, chord} segments. */

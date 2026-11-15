@@ -13,7 +13,11 @@ vi.mock("../sessionControl", () => ({
 }));
 
 function resetStore() {
-  useVisualizerStore.setState({ selection: INITIAL_SELECTION });
+  useVisualizerStore.setState({
+    selection: INITIAL_SELECTION,
+    coachRunId: 0,
+    coachStartedAtMs: null,
+  });
 }
 
 describe("MenuView", () => {
@@ -94,6 +98,25 @@ describe("MenuView", () => {
   it("starts the Cargo backing track and a passthrough-only monitor (no RNN)", async () => {
     render(<MenuView />);
 
+    // jsdom cannot decode WAVs: stub the engine hand-off so START reaches the
+    // playback phase and exercises the coach-restart wiring.
+    const handle = (window as unknown as {
+      __cyberjamCargo?: {
+        loadSong: (slug: string) => Promise<void>;
+        connectToGuitarEngine: () => void;
+        play: () => Promise<void>;
+        playbackSeconds: () => number;
+        diagnostics: () => Promise<{ context: string }>;
+      };
+    }).__cyberjamCargo;
+    expect(handle).toBeTruthy();
+    if (!handle) throw new Error("cargo engine handle missing");
+    handle.loadSong = vi.fn().mockResolvedValue(undefined);
+    handle.connectToGuitarEngine = vi.fn();
+    handle.play = vi.fn().mockResolvedValue(undefined);
+    handle.playbackSeconds = () => 0;
+    handle.diagnostics = vi.fn().mockResolvedValue({ context: "running" });
+
     expect(screen.getByRole("button", { name: /START/ })).toBeDisabled();
 
     // Picking a real song reveals the difficulty step but Start stays disabled.
@@ -123,6 +146,9 @@ describe("MenuView", () => {
     );
     expect(window.location.hash).toBe("#/menu");
     expect(useVisualizerStore.getState().selection.mode).toBe("beginner");
+    // The beginner tutorial restarts with the stems (bar 1 = WAV position 0).
+    expect(useVisualizerStore.getState().coachRunId).toBeGreaterThan(0);
+    expect(useVisualizerStore.getState().coachStartedAtMs).not.toBeNull();
   });
 
   it("renders beginner guidance on the menu monitor when beginner mode is selected", () => {
