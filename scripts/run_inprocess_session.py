@@ -956,6 +956,21 @@ class InProcessCyberJamSession:
             self.ml.start()
         await self.telemetry.start()
 
+        # Startup input self-check: a silent capture path is the most common
+        # "the guitar isn't picked up" report, and the DSP meter is buried in
+        # the log, so surface it once, loudly.
+        await asyncio.sleep(1.2)
+        level = float(self.state.snapshot().get("rms") or 0.0)
+        if level < 1e-4:
+            logger.warning(
+                "Input looks silent (rms=%.5f). Check: guitar in Input 2 (Inst), "
+                "gain knob up, cable seated, and that the Direct Monitor switch "
+                "is not muting the software path.",
+                level,
+            )
+        else:
+            logger.info("Input level check: rms=%.4f (signal present).", level)
+
         # Start the Magenta RNN worker (separate Python 3.9 venv). Non-fatal.
         if RNN_ENABLED:
             model_set = MODEL_SETS.get(RNN_SET, MODEL_SETS["cargo"])

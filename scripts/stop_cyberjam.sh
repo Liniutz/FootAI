@@ -53,6 +53,11 @@ sleep 1
 
 # 3. Report what is left (should be nothing).
 set -l remaining (pgrep -af "run_inprocess_session|rnn_worker|session_control|pw-loopback.*CyberJam_VisualSource" | grep -v stop_cyberjam)
+# session_control is expected to keep running so `npm run dev` still works;
+# only report it as leftover when we were asked to stop it.
+if not contains -- --controller $argv
+    set remaining (string match -v "session_control" -- $remaining)
+end
 
 if test (count $remaining) -gt 0
     echo "Still running:"
