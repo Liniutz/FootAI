@@ -12,13 +12,14 @@
 import { useSyncExternalStore } from "react";
 import type { AppView } from "./types";
 
-export type Route = "home" | AppView;
+export type Route = "home" | "cargo-audio" | AppView;
 
 /** Parse the current `location.hash` into a known route. */
 export function parseHashRoute(hash: string): Route {
   const path = hash.replace(/^#\/?/, "").toLowerCase();
   if (path === "menu") return "menu";
   if (path === "visualizer") return "visualizer";
+  if (path === "cargo-audio") return "cargo-audio";
   return "home";
 }
 

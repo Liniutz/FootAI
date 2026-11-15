@@ -88,7 +88,7 @@ describe("selectedSong", () => {
   it("resolves a selected song", () => {
     expect(
       selectedSong({ songId: "cargo-song", instrumentIds: [], mode: null })?.title,
-    ).toBe("Cargo");
+    ).toBe("Ziua Vrăjitoarelor");
   });
 
   it("returns null when no / unknown song", () => {

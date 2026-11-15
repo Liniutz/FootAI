@@ -95,3 +95,40 @@ A `note_on` with velocity `0` is treated as `note_off`. Requires a secure contex
 the `CyberJam_Band` port. The visualizer degrades gracefully (`unsupported` / `denied` /
 `port-missing`) when any of these is absent. See
 [`visualizer-react.md`](./visualizer-react.md) Extension track E.
+
+## 4. Cargo Stem Playback (optional add-on)
+
+Aligned multitrack WAV stems for the Cargo songs, served statically by the visualizer dev/build
+under `visualizer/public/<slug>/` (no new ports, no backend). Selecting one of these songs in the
+Menu and pressing **START** plays the stems in sync with live guitar input; the Python engine
+session is still attempted but never blocks stem playback. All songs:
+
+| Song (catalog id) | Stem slug | Reference BPM |
+| :--- | :--- | :--- |
+| Ziua Vrăjitoarelor (`cargo-song`) | `ziua_vrajitoarelor` | ~143.55 |
+| Nu Mai Am Țigări (`cargo-nu-mai-am-tigari`) | `nu mai am tigari` | ~69.84 |
+| Andri Popa (`cargo-andri-popa`) | `andri popa` | ~172.27 |
+
+Each slug folder holds six stems — `drums.wav`, `bass.wav`, `vocals.wav`, `guitar.wav`,
+`piano.wav`, `other.wav` — plus a `song_map.json`:
+
+```json
+{
+  "id": "ziua_vrajitoarelor",
+  "base_bpm": 143.55,
+  "beats": [/* beat timestamps, seconds */],
+  "chords": [ { "time": 8.034, "chord": "B5", "pitch_class": 11 } ]
+}
+```
+
+- **Player:** `CargoBandEngine` (`visualizer/src/audio/cargoBandEngine.ts`) loads the map, `HEAD`-checks
+  all six WAVs, then plays them as Tone.js `GrainPlayer`s synced to the Transport. Fetches are
+  URL-encoded per path segment (`andri popa` → `andri%20popa`). Missing files/maps fail loudly in a
+  `role="alert"` hint on the Menu and never break the normal engine/telemetry flow.
+- **Guitar-engine WebSocket (`ws://127.0.0.1:8765`)** — optional service (`cargo-audio-engine/server.py`).
+  The client sends `{ "base_bpm": <number> }` on connect and consumes frames
+  `{ "live_bpm": number, "is_playing": boolean, "energy": number, "detected_pitch_class": int }`.
+  Stems' `playbackRate` scales with `live_bpm / base_bpm` (clamped 0.5–2) and the guitar stem ducks
+  to −14 dB while the visitor is strumming. Offline service = plain stems at reference tempo.
+- **Chord readout / beginner coach:** current + next chord come from `song_map.json` segments sampled
+  at bar boundaries (`240 / base_bpm` seconds per 4/4 bar) — see `src/visualizer/songMapChords.ts`.

@@ -60,7 +60,7 @@ describe("instrument catalog integrity", () => {
 describe("song catalog integrity", () => {
   it("has at least one song including Cargo", () => {
     expect(SONGS.length).toBeGreaterThan(0);
-    expect(getSongById("cargo-song")?.title).toBe("Cargo");
+    expect(getSongById("cargo-song")?.title).toBe("Ziua Vrăjitoarelor");
   });
 
   it("has unique song ids", () => {
@@ -96,7 +96,7 @@ describe("selector helpers", () => {
   });
 
   it("getSongById resolves known ids and rejects unknown", () => {
-    expect(getSongById("cargo-song")?.title).toBe("Cargo");
+    expect(getSongById("cargo-song")?.title).toBe("Ziua Vrăjitoarelor");
     expect(getSongById("nope")).toBeUndefined();
   });
 

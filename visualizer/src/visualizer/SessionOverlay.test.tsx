@@ -27,7 +27,7 @@ describe("TV live HUD", () => {
       latestFrame: frame({ bpm: 128, detected_pitch: { hz: 82, note: "E2", midi: 40, key: "E" } }),
     });
     render(<SessionOverlay />);
-    expect(screen.getByTestId("session-song-title")).toHaveTextContent("Cargo");
+    expect(screen.getByTestId("session-song-title")).toHaveTextContent("Ziua Vrăjitoarelor");
     expect(screen.getByTestId("session-bpm")).toHaveTextContent("128");
     expect(screen.getByTestId("session-key")).toHaveTextContent("E");
     expect(screen.getByTestId("score-points")).toBeInTheDocument();

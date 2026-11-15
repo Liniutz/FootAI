@@ -30,7 +30,7 @@ describe("MenuView", () => {
   it("selecting a song updates the store and persists it", () => {
     render(<MenuView />);
 
-    const cargo = screen.getByRole("radio", { name: /Cargo/ });
+    const cargo = screen.getByRole("radio", { name: /Ziua Vrăjitoarelor/ });
     act(() => cargo.click());
 
     expect(useVisualizerStore.getState().selection.songId).toBe("cargo-song");
@@ -48,7 +48,7 @@ describe("MenuView", () => {
 
     render(<MenuView />);
 
-    expect(screen.getByRole("radio", { name: /Cargo/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /Ziua Vrăjitoarelor/ })).toBeChecked();
     expect(screen.getByRole("radio", { name: "Beginner" })).toBeChecked();
     expect(useVisualizerStore.getState().selection).toEqual({
       songId: "cargo-song",
@@ -63,7 +63,7 @@ describe("MenuView", () => {
     render(<MenuView />);
 
     expect(useVisualizerStore.getState().selection).toEqual(INITIAL_SELECTION);
-    expect(screen.getByRole("radio", { name: /Cargo/ })).not.toBeChecked();
+    expect(screen.getByRole("radio", { name: /Ziua Vrăjitoarelor/ })).not.toBeChecked();
   });
 
   it("shows live BPM and key and has no band-instrument controls", () => {
@@ -97,7 +97,7 @@ describe("MenuView", () => {
     expect(screen.getByRole("button", { name: /START/ })).toBeDisabled();
 
     // Picking a real song reveals the difficulty step but Start stays disabled.
-    act(() => screen.getByRole("radio", { name: /Cargo/ }).click());
+    act(() => screen.getByRole("radio", { name: /Ziua Vrăjitoarelor/ }).click());
     expect(screen.getByRole("button", { name: /START/ })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Beginner" })).toBeInTheDocument();
     expect(
@@ -161,7 +161,7 @@ describe("MenuView", () => {
   it("clears a chosen mode when switching to another song", () => {
     render(<MenuView />);
 
-    act(() => screen.getByRole("radio", { name: /Cargo/ }).click());
+    act(() => screen.getByRole("radio", { name: /Ziua Vrăjitoarelor/ }).click());
     act(() => screen.getByRole("radio", { name: "Experienced" }).click());
     expect(useVisualizerStore.getState().selection.mode).toBe("experienced");
 

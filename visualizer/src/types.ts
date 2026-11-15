@@ -92,6 +92,8 @@ export interface SongEntry {
    * Optional and defaults to false for regular songs.
    */
   freestyle?: boolean;
+  /** Optional aligned Cargo multitrack session, served from `/<slug>/` under public/. */
+  cargoStemSlug?: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -37,6 +37,15 @@ export function ChordDiagram({
   const stringX = (s: number) => padX + s * colGap;
   const fretY = (row: number) => padTop + row * rowH;
 
+  // Scroll the window up the neck for shapes played above the visible rows
+  // (e.g. 5th-string power chords), labeling the first visible fret.
+  const frettedFrets = chord.strings
+    .filter((st) => st.kind === "fret")
+    .map((st) => (st.kind === "fret" ? st.fret : 0));
+  const maxFret = frettedFrets.length > 0 ? Math.max(...frettedFrets) : 0;
+  const baseFret =
+    maxFret > fretRows ? Math.max(1, Math.min(...frettedFrets) - 1) : 1;
+
   const muteOpenColor = preview ? "#9aa7bd" : "#cfd8e8";
   const dotColor = preview ? "#8fb8ff" : "#6ee7ff";
   const lineColor = preview ? "#3a475e" : "#5a6b86";
@@ -53,14 +62,31 @@ export function ChordDiagram({
         role="img"
         aria-label={`${chord.name} chord diagram`}
       >
-        {/* Nut (thick top line). */}
-        <rect
-          x={stringX(0)}
-          y={padTop - 4}
-          width={boardW}
-          height={4}
-          fill={muteOpenColor}
-        />
+        {/* Nut (thick top line) — only at the real nut, not a scrolled window. */}
+        {baseFret === 1 && (
+          <rect
+            x={stringX(0)}
+            y={padTop - 4}
+            width={boardW}
+            height={4}
+            fill={muteOpenColor}
+          />
+        )}
+
+        {/* Scrolled-window base fret label, top-right of the first row. */}
+        {baseFret > 1 && (
+          <text
+            x={stringX(STRING_COUNT - 1)}
+            y={fretY(0) + rowH / 2 + 4}
+            textAnchor="end"
+            fontSize={preview ? 9 : 11}
+            fill={muteOpenColor}
+            fontFamily="monospace"
+            data-testid="base-fret"
+          >
+            {baseFret}fr
+          </text>
+        )}
 
         {/* Fret wires. */}
         {Array.from({ length: fretRows + 1 }, (_, r) => (
@@ -107,8 +133,8 @@ export function ChordDiagram({
               </text>
             );
           }
-          // Fretted: dot centered in its fret row.
-          const cy = fretY(st.fret - 1) + rowH / 2;
+          // Fretted: dot centered in its fret row (offset for scrolled windows).
+          const cy = fretY(st.fret - baseFret) + rowH / 2;
           const r = preview ? 8 : 11;
           return (
             <g key={`d${s}`} data-testid={`dot-${s}`}>
