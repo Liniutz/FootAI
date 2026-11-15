@@ -93,55 +93,89 @@ export function StageFlames() {
       // Broad warm stage glow radiating inward from the left/right edges.
       const glow = ctx!.createRadialGradient(
         edgeX,
-        h * 0.84,
-        maxReach * 0.08,
-        edgeX - side * maxReach * 0.35,
-        h * 0.66,
-        maxReach * 1.85,
+        h * 0.88,
+        maxReach * 0.04,
+        edgeX - side * maxReach * 0.3,
+        h * 0.68,
+        maxReach * 2.1,
       );
-      glow.addColorStop(0, `rgba(255, 168, 46, ${0.42 * profile.intensity})`);
-      glow.addColorStop(0.42, `rgba(235, 72, 18, ${0.26 * profile.intensity})`);
-      glow.addColorStop(0.78, `rgba(140, 22, 6, ${0.1 * profile.intensity})`);
+      glow.addColorStop(0, `rgba(255, 190, 64, ${0.5 * profile.intensity})`);
+      glow.addColorStop(0.35, `rgba(255, 82, 16, ${0.32 * profile.intensity})`);
+      glow.addColorStop(0.7, `rgba(170, 22, 6, ${0.14 * profile.intensity})`);
       glow.addColorStop(1, "rgba(0, 0, 0, 0)");
       ctx!.fillStyle = glow;
       ctx!.fillRect(0, 0, w, h);
 
-      // Layered flickering flame tongues climbing each side from the bottom corners.
+      // Layered soft-blurred flame tongues climbing each side from the bottom corners.
       const layers = [
-        { scale: 1.0, speed: 3.1, colorTop: "rgba(255, 68, 12, 0)", colorMid: `rgba(255, 92, 18, ${0.46 * profile.intensity})`, colorBase: `rgba(255, 145, 32, ${0.65 * profile.intensity})` },
-        { scale: 0.72, speed: 4.4, colorTop: "rgba(255, 130, 20, 0)", colorMid: `rgba(255, 162, 42, ${0.52 * profile.intensity})`, colorBase: `rgba(255, 220, 110, ${0.72 * profile.intensity})` },
-        { scale: 0.44, speed: 5.8, colorTop: "rgba(255, 210, 90, 0)", colorMid: `rgba(255, 224, 128, ${0.5 * profile.intensity})`, colorBase: `rgba(255, 248, 210, ${0.78 * profile.intensity})` },
+        {
+          scale: 1.05,
+          speed: 2.9,
+          blur: 18,
+          colorTop: "rgba(200, 32, 0, 0)",
+          colorMid: `rgba(255, 76, 12, ${0.52 * profile.intensity})`,
+          colorBase: `rgba(255, 130, 24, ${0.72 * profile.intensity})`,
+        },
+        {
+          scale: 0.72,
+          speed: 4.3,
+          blur: 10,
+          colorTop: "rgba(255, 110, 12, 0)",
+          colorMid: `rgba(255, 148, 28, ${0.58 * profile.intensity})`,
+          colorBase: `rgba(255, 205, 82, ${0.78 * profile.intensity})`,
+        },
+        {
+          scale: 0.42,
+          speed: 5.9,
+          blur: 4,
+          colorTop: "rgba(255, 196, 64, 0)",
+          colorMid: `rgba(255, 222, 110, ${0.55 * profile.intensity})`,
+          colorBase: `rgba(255, 250, 210, ${0.84 * profile.intensity})`,
+        },
       ];
 
       for (let li = 0; li < layers.length; li += 1) {
         const layer = layers[li];
         const reach = maxReach * layer.scale;
-        const height = maxHeight * (0.82 + 0.18 * layer.scale);
+        const height = maxHeight * (0.8 + 0.2 * layer.scale);
         const topY = h - height;
-        const steps = 16;
+        const steps = 18;
+        const pts: Array<{ x: number; y: number }> = [];
 
-        ctx!.beginPath();
-        ctx!.moveTo(edgeX, h);
         for (let i = 0; i <= steps; i += 1) {
           const frac = i / steps; // 0 = bottom, 1 = top tip
           const y = h - frac * height;
-          const taper = Math.pow(1 - frac, 0.75);
-          const wave1 = Math.sin(frac * 7.5 - t * layer.speed + li * 1.7 + (side === 1 ? 2.1 : 0));
-          const wave2 = Math.cos(frac * 13.0 - t * (layer.speed * 1.37) + li * 0.9);
-          const flicker = 0.72 + 0.28 * (0.6 * wave1 + 0.4 * wave2);
+          const taper = Math.pow(1 - frac, 0.88);
+          const wave1 = Math.sin(frac * 8.5 - t * layer.speed + li * 1.9 + (side === 1 ? 2.1 : 0));
+          const wave2 = Math.cos(frac * 15.0 - t * (layer.speed * 1.42) + li * 0.9);
+          const flicker = 0.65 + 0.35 * (0.62 * wave1 + 0.38 * wave2);
           const inward = reach * taper * flicker;
-          const x = edgeX - side * inward;
-          ctx!.lineTo(x, y);
+          pts.push({ x: edgeX - side * inward, y });
+        }
+
+        ctx!.save();
+        if ("filter" in ctx!) {
+          ctx!.filter = `blur(${layer.blur}px)`;
+        }
+        ctx!.beginPath();
+        ctx!.moveTo(edgeX, h + 16);
+        ctx!.lineTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < pts.length - 1; i += 1) {
+          const mx = (pts[i].x + pts[i + 1].x) / 2;
+          const my = (pts[i].y + pts[i + 1].y) / 2;
+          ctx!.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
         }
         ctx!.lineTo(edgeX, topY);
         ctx!.closePath();
 
-        const grad = ctx!.createLinearGradient(edgeX, h, edgeX - side * reach, topY);
+        // Fade vertically toward the tip as well as inward from the edge.
+        const grad = ctx!.createLinearGradient(edgeX, h, edgeX - side * reach * 0.65, topY);
         grad.addColorStop(0, layer.colorBase);
-        grad.addColorStop(0.5, layer.colorMid);
+        grad.addColorStop(0.45, layer.colorMid);
         grad.addColorStop(1, layer.colorTop);
         ctx!.fillStyle = grad;
         ctx!.fill();
+        ctx!.restore();
       }
     }
 
