@@ -224,6 +224,8 @@
 }
 
 .view--visualizer.gh--tv {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -232,6 +234,20 @@
   background:
     linear-gradient(180deg, rgba(6, 9, 16, 0.12), rgba(6, 9, 16, 0.5)),
     url("/m1.jpeg") center / cover no-repeat;
+}
+
+.view--visualizer.gh--tv > :not(.stage-flames) {
+  position: relative;
+  z-index: 1;
+}
+
+.stage-flames {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
 }
 
 @media (max-width: 720px) {

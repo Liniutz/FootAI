@@ -14,6 +14,7 @@ import { useFlow } from "../visualizer/useFlow";
 import { WaveformCanvas } from "../visualizer/WaveformCanvas";
 import { NotePitchPanel } from "../visualizer/NotePitchPanel";
 import { AdrianStage } from "../visualizer/AdrianStage";
+import { StageFlames } from "../visualizer/StageFlames";
 import { RockMeter } from "../visualizer/GuitarHeroHud";
 import { SessionOverlay } from "../visualizer/SessionOverlay";
 import "../visualizer/visualizer.css";
@@ -26,6 +27,7 @@ export function VisualizerView() {
 
   return (
     <section aria-label="Visualizer" className="view view--visualizer gh gh--tv">
+      <StageFlames />
       <SessionOverlay />
       <div className="gh-stage gh-stage--tv">
         <RockMeter />

@@ -68,6 +68,21 @@
 .gh--tv .adrian-stage {
   min-height: 0;
   background: transparent;
+  /* Soften the bottom cutoff at Barar's feet into the stage floor. */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 70%,
+    rgba(0, 0, 0, 0.5) 84%,
+    transparent 95%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    #000 70%,
+    rgba(0, 0, 0, 0.5) 84%,
+    transparent 95%
+  );
 }
 
 .gh--tv .adrian-stage::before {

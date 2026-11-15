@@ -526,10 +526,10 @@ Design decisions (confirmed with the product owner):
     integrity; mount/unmount cleanup.
   - *Result:* `src/visualizer/adrian.ts` (`ADRIAN_ANIMATIONS` manifest, `animationForMood`,
     `effectsForFlow`, `isManifestValid`, `MOOD_COLORS`) + `src/visualizer/AdrianStage.tsx` (PixiJS
-    placeholder procedural pixel sprite; mood-driven bob/speed, flow-driven glow, onset pulse;
-    respects `prefers-reduced-motion`; real sprite-sheet art drops into `drawAdrian`/manifest later).
-    6 unit tests. Wired into `VisualizerView` (Adrian center, ribbon bottom, flow readout, Enable
-    Audio + Connect Band MIDI buttons).
+    sprite; mood-driven bob/speed, flow-driven glow, onset pulse; bottom foot fade into the stage
+    floor via CSS `mask-image`) + `src/visualizer/StageFlames.tsx` (2D canvas side-stage pyrotechnic
+    flames and rising embers along both left and right edges, scaling with `flow` and guitar onsets;
+    respects `prefers-reduced-motion`). 10 unit tests. Wired into `VisualizerView`.
 
 
 ### Track E restyle — Guitar Hero look & HUD ✅ *Done.*
